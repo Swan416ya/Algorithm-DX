@@ -4,15 +4,16 @@
  * `https://maimai.sega.com/assets/css/style.css`）。每条关键数值后面标了官方选择器，
  * 以后要调整就照着官方那行改。
  *
- * 载入顺序：styles.css → ui.css → theme.css，所以在同权重下本文件覆盖前两者；
+ * 载入顺序：fonts.css → styles.css → 各页自己的 CSS（circle/dx-result/dan…）→ ui.css
+ * → theme.css → theme-dark.css。所以在同权重下本文件覆盖前面几个；
  * 少数带 #id 或 .ac-page 前缀的旧规则用 `body.mm-theme` 提权重压过去。
  *
  * 深色模式是叠加在后面的 theme-dark.css：里面的规则都带 [data-mm-theme="dark"] 前缀，
  * 只覆盖材质与配色，改浅色那套不用动这个文件。
  *
- * 背景整页复用官网那份动态背景，见 public/vendor/maimai/bg.html。
+ * 背景整页复用官网那份动态背景，见 public/bg.html。
  *
- * 与官方的五处有意偏差，见文件末尾「与官方的偏差」。
+ * 与官方的八处有意偏差，见文件末尾「与官方的偏差」。
  */
 
 /* ============ 1. 调色与尺度（数值全部取自官方） ============ */
@@ -44,11 +45,19 @@
   --mm-gradient: linear-gradient(0deg, #fff 14%, #ffd5cf 24%, #ffd5cf 46%, #ffc5d5 56%,
     #eaabff 67%, #72bcfe 85%, #65f2df 95%);
 
-  /* 卡片：官方 .common--box @min-width:1100px → 900px / 30px / 14px 14px 0 / 600×8 */
+  /* 卡片：官方 .common--box 是三档 vw 阶梯，下面按档照搬（默认这档就是官方 @min-width:1100px
+     的 900px / 30px / 14px 14px 0 / 600×8），另两档写在后面的媒体查询里 */
   --mm-card-radius: 30px;
-  --mm-card-shadow: 14px 14px 0 0 rgba(0, 0, 0, .2);
+  /* 阴影拆成「偏移」与「颜色」两段：窄屏只改偏移（官方那三档），深色只改颜色 */
+  --mm-card-shadow-x: 14px;
+  --mm-card-shadow-color: rgba(0, 0, 0, .2);
+  --mm-card-shadow: var(--mm-card-shadow-x) var(--mm-card-shadow-x) 0 0 var(--mm-card-shadow-color);
   --mm-bar-w: min(66.6667%, 600px);
   --mm-bar-h: 8px;
+
+  /* 品牌图标：浅色用浅色版，深色版在 theme-dark.css 里换掉（首帧前由 <html> 上的主题决定，
+     所以不会先亮后暗） */
+  --mm-brand-mark: url(/algorithm-dx-icon-light.svg);
 
   /* 顶栏胶囊：官方 .header--nav @min-width:1400px → 1200×100 / 50px / 10px 10px 0 */
   --mm-nav-h: clamp(64px, 7.1429vw, 100px);
@@ -97,6 +106,26 @@
   --mono: var(--mm-mono);
 }
 
+/* —— 官方 .common--box 的另外两档（原样取自 style.css，数值一个没改）——
+   :root 里那档是 ≥1100px；下面两档在窄屏把圆角、硬阴影与横条一起缩小。
+   少了它们，手机上会一直用 30px 圆角 + 14px 阴影，比官方重得多。 */
+@media only screen and (max-width: 768.98px) {
+  :root {
+    --mm-card-radius: 3.75vw;
+    --mm-card-shadow-x: 1.75vw;
+    --mm-bar-w: 75vw;
+    --mm-bar-h: 1.5vw;
+  }
+}
+@media only screen and (min-width: 769px) and (max-width: 1099.98px) {
+  :root {
+    --mm-card-radius: 2.7272727273vw;
+    --mm-card-shadow-x: 1.2727272727vw;
+    --mm-bar-w: 54.5454545455vw;
+    --mm-bar-h: .7272727273vw;
+  }
+}
+
 /* ============ 2. 全局 ============ */
 
 html, body { background: #fff; }
@@ -114,7 +143,7 @@ body.mm-theme a:hover { color: var(--mm-pink-hot); }
 
 body.mm-theme ::selection { background: var(--mm-purple-soft); color: var(--mm-navy); }
 
-/* 背景：官网那份动态背景整页复用（./vendor/maimai/bg.html），
+/* 背景：官网那份动态背景整页复用（./bg.html），
    官方 CSS 里的全局选择器关在 iframe 里，不会碰到本站布局。
    body 自己只留一层兜底渐变，iframe 没加载出来时不至于白屏。 */
 body.mm-theme {
@@ -141,7 +170,7 @@ body.mm-theme {
 body.mm-theme .site-header,
 body.mm-theme .app { position: relative; z-index: 2; }
 
-/* ============ 4. 顶栏（官方 .header--nav 桌面胶囊 / .header--btn 移动汉堡） ============ */
+/* ============ 3. 顶栏（官方 .header--nav 桌面胶囊 / .header--btn 移动汉堡） ============ */
 
 body.mm-theme .site-header {
   display: flex;
@@ -160,7 +189,14 @@ body.mm-theme .site-header {
 }
 
 body.mm-theme .site-header .brand { gap: 12px; color: var(--mm-navy); text-decoration: none; }
-body.mm-theme .site-header .brand .mark { width: 56px; height: 34px; }
+body.mm-theme .site-header .brand .mark {
+  display: block;
+  width: 56px;
+  height: 34px;
+  /* 图标走 CSS 背景而不是 <img src>：主题在 <html> 上，首帧前就定好了，
+     换成图片标签的话浅色主题会先闪一下深色版图标 */
+  background: var(--mm-brand-mark) center / contain no-repeat;
+}
 body.mm-theme .site-header .brand-text h1 {
   margin: 0;
   font-size: 21px;
@@ -277,7 +313,7 @@ body.mm-menu-open .mm-menu-btn span:last-child { transform: translateY(-3.5px) r
   }
   .mm-menu-btn { display: block; }
   /* 窄屏要同时站下品牌、深色开关和汉堡：品牌收一档，否则 header 会折行成两层
-     （开关自己的尺寸在 §18 的媒体查询里，因为那节的规则排在更后面） */
+     （开关自己的尺寸在 §16 的媒体查询里，因为那节的规则排在更后面） */
   body.mm-theme .site-header { gap: 12px; }
   body.mm-theme .site-header .brand .mark { width: 46px; height: 28px; }
   body.mm-theme .site-header .brand-text h1 { font-size: 18px; }
@@ -306,7 +342,10 @@ body.mm-menu-open .mm-menu-btn span:last-child { transform: translateY(-3.5px) r
   /* 顶栏平时和 .app 同层（都是 z-index:2），展开菜单时必须抬到 .app 之上，
      否则白色面板会被正文盖住 */
   body.mm-menu-open .site-header { z-index: 30; }
-  body.mm-menu-open { overflow: hidden; }
+  /* html 上也锁一份：只锁 body 拦不住 html 那只滚动条，深色面板右上角会露一截浅色滑块。
+     这两条都必须留在媒体查询里 —— 拉宽窗口后菜单按钮已经隐藏，锁还在就谁也解不开了 */
+  body.mm-menu-open,
+  html.mm-menu-open { overflow: hidden; }
   body.mm-theme .site-header .nav .btn,
   body.mm-theme .site-header .nav .btn.btn-primary,
   body.mm-theme .site-header .nav .btn.btn-ghost {
@@ -389,7 +428,7 @@ body.mm-theme .site-header .global-sync-bar .btn { min-height: 30px; padding: 4p
 .mm-top:hover { transform: translateY(-5%); }
 .mm-top img { display: block; width: 100%; height: auto; }
 
-/* ============ 5. 版心与页面节奏 ============ */
+/* ============ 4. 版心与页面节奏 ============ */
 
 body.mm-theme .app,
 body.mm-theme.ac-page .app {
@@ -432,7 +471,7 @@ body.mm-theme .pager {
   body.mm-theme .help-heading,
   body.mm-theme .help-toc,
   body.mm-theme .pager {
-    background: rgba(255, 255, 255, .74);
+    background: rgba(255, 255, 255, .88);
     -webkit-backdrop-filter: blur(12px) saturate(1.2);
     backdrop-filter: blur(12px) saturate(1.2);
   }
@@ -448,15 +487,27 @@ body.mm-theme .help-heading h2 {
   text-shadow: 0 1px 0 rgba(255, 255, 255, .9), 0 0 14px rgba(255, 255, 255, .8);
 }
 
-/* 直接落在背景上的小字：白描边保证在浅色/深色花纹上都读得出来 */
+/* 小字：在卡片或玻璃板里的留一圈很淡的白描边就够了；直接落在背景花纹上的那几处
+   （.app 的直接子元素、题友动态的状态行、说明页正文、热力图加载提示）另给一块
+   不透明底板，否则花哨图案会从字底下透出来 */
 body.mm-theme .analytics-note,
 body.mm-theme #message,
 body.mm-theme .dan-msg,
 body.mm-theme .circle-note,
 body.mm-theme .pager-hint {
-  text-shadow: 0 1px 0 rgba(255, 255, 255, .95), 0 -1px 0 rgba(255, 255, 255, .95),
-    1px 0 0 rgba(255, 255, 255, .95), -1px 0 0 rgba(255, 255, 255, .95),
-    0 0 10px rgba(255, 255, 255, .9);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .95), 0 0 10px rgba(255, 255, 255, .9);
+}
+body.mm-theme .app > .analytics-note,
+body.mm-theme .app > #message,
+body.mm-theme .app > .dan-msg,
+body.mm-theme .circle-main > #message,
+body.mm-theme .heatmap-top > .analytics-note,
+body.mm-theme .help-page > p {
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px 14px;
+  box-shadow: 0 8px 20px -14px rgba(11, 56, 113, .55);
+  text-shadow: none;
 }
 body.mm-theme .stats-eyebrow { display: block; margin-bottom: 14px; }
 body.mm-theme .ac-page-heading h2 { margin: 0 0 14px; }
@@ -469,7 +520,7 @@ body.mm-theme .page-toolbar {
   margin-bottom: clamp(28px, 3.2vw, 48px);
 }
 
-/* ============ 6. 官方大盒子 .common--box（白底 + 上紫下粉横条 + 14px 硬阴影） ============ */
+/* ============ 5. 官方大盒子 .common--box（白底 + 上紫下粉横条 + 14px 硬阴影） ============ */
 
 body.mm-theme .filters,
 body.mm-theme .admin,
@@ -494,7 +545,9 @@ body.mm-theme .admin::before,
 body.mm-theme .foot::before,
 body.mm-theme .section::before,
 body.mm-theme .stat-row::before,
-body.mm-theme .ac-platform-strip::before {
+body.mm-theme .ac-platform-strip::before,
+body.mm-theme .analytics::before,
+body.mm-theme .today-panel::before {
   content: "";
   position: absolute;
   top: 0;
@@ -510,7 +563,9 @@ body.mm-theme .admin::after,
 body.mm-theme .foot::after,
 body.mm-theme .section::after,
 body.mm-theme .stat-row::after,
-body.mm-theme .ac-platform-strip::after {
+body.mm-theme .ac-platform-strip::after,
+body.mm-theme .analytics::after,
+body.mm-theme .today-panel::after {
   content: "";
   position: absolute;
   bottom: 0;
@@ -550,7 +605,7 @@ body.mm-theme.ac-page .filters {
   body.mm-theme.ac-page .filters { gap: 16px; }
 }
 
-/* ============ 7. 按钮（官方 .common--btn：红底 + 同色系 3D 底影，按下时沉到阴影上） ============ */
+/* ============ 6. 按钮（官方 .common--btn：红底 + 同色系 3D 底影，按下时沉到阴影上） ============ */
 
 body.mm-theme .btn {
   border: 0;
@@ -592,7 +647,7 @@ body.mm-theme .btn[disabled] { opacity: .45; box-shadow: none; transform: none; 
 body.mm-theme .btn-small { min-height: 32px; padding: 6px 16px; font-size: 12.5px; }
 body.mm-theme .btn-mini { min-height: 28px; padding: 4px 12px; font-size: 12px; }
 
-/* ============ 8. 表单 ============ */
+/* ============ 7. 表单 ============ */
 
 body.mm-theme .input,
 body.mm-theme .select {
@@ -625,7 +680,7 @@ body.mm-theme .filter-label {
 body.mm-theme .field-hint,
 body.mm-theme .section-hint { color: var(--muted); }
 
-/* ============ 9. 标签、胶囊、分页 ============ */
+/* ============ 8. 标签、胶囊、分页 ============ */
 
 body.mm-theme .chip {
   font-family: var(--mm-sans);
@@ -701,7 +756,7 @@ body.mm-theme.ac-page .db-chip { color: var(--mm-navy); border-color: var(--mm-g
 body.mm-theme .pager { padding: 12px 0 4px; }
 body.mm-theme .pager-hint { color: var(--muted); font-family: var(--mm-mono); }
 
-/* ============ 10. 概览数字（盒子是官方的，格子是平的） ============ */
+/* ============ 9. 概览数字（盒子是官方的，格子是平的） ============ */
 
 body.mm-theme .stat-row,
 body.mm-theme.ac-page #statRow {
@@ -775,7 +830,7 @@ body.mm-theme .ac-platform-strip .stat:hover { background: var(--mm-purple-tint)
 body.mm-theme .ac-platform-strip .stat-value { font: 800 18px var(--mm-sans); color: var(--mm-navy); }
 body.mm-theme .ac-platform-strip .stat-sub { color: var(--muted); }
 
-/* ============ 11. 记录列表（区块是官方盒子，每条记录是盒子里的一行） ============ */
+/* ============ 10. 记录列表（区块是官方盒子，每条记录是盒子里的一行） ============ */
 
 /* 区块标题占一行，下面用发丝线接记录行 —— 与官网 top--update 的列表同一套做法 */
 body.mm-theme.ac-page .section-head {
@@ -942,7 +997,7 @@ body.mm-theme.ac-page .expand-btn:hover {
   box-shadow: none;
 }
 
-/* ============ 12. 区块标题与提示 ============ */
+/* ============ 11. 区块标题与提示 ============ */
 
 body.mm-theme .section-head h2,
 body.mm-theme.ac-page .section-head h2 {
@@ -1018,7 +1073,7 @@ body.mm-theme .empty {
 body.mm-theme .empty h3 { color: var(--mm-navy); font-weight: 800; }
 body.mm-theme .spinner { border-color: var(--mm-purple-tint); border-top-color: var(--mm-purple); }
 
-/* ============ 13. 页脚（官方 .footer--bottom：白底、#0b3871 字色、上沿软阴影） ============ */
+/* ============ 12. 页脚（官方 .footer--bottom：白底、#0b3871 字色、上沿软阴影） ============ */
 
 body.mm-theme .foot {
   margin-top: clamp(30px, 3.4vw, 52px);
@@ -1030,7 +1085,7 @@ body.mm-theme .foot {
 body.mm-theme .foot-note { color: var(--muted); }
 body.mm-theme .foot a { color: var(--mm-purple-deep); }
 
-/* ============ 14. 暗色残留（旧规则里写死的浅色字 / 深色底，逐条扳回亮色） ============ */
+/* ============ 13. 暗色残留（旧规则里写死的浅色字 / 深色底，逐条扳回亮色） ============ */
 
 body.mm-theme .ac-card-identity,
 body.mm-theme.ac-page .ac-card-identity { color: var(--muted); }
@@ -1059,7 +1114,7 @@ body.mm-theme .help-inline summary { color: var(--mm-navy); }
   body.mm-theme .stats-toolbar h2 { font-size: 26px; }
 }
 
-/* ============ 15. 表格与弹窗 ============ */
+/* ============ 14. 表格与弹窗 ============ */
 
 body.mm-theme .rt-table {
   background: #fff;
@@ -1084,7 +1139,7 @@ body.mm-theme .modal-card h2,
 body.mm-theme dialog h2,
 body.mm-theme dialog h3 { color: var(--mm-navy); }
 
-/* ============ 17. 其余页面自带组件（旧文件里写死的深色，逐条扳回官方亮色） ============
+/* ============ 15. 其余页面自带组件（旧文件里写死的深色，逐条扳回官方亮色） ============
  *
  * styles.css / ui.css / circle.css 里有一批硬编码的深色面（分析卡、今日面板、热力图、
  * DX 计时器、题友圈人物、帮助目录…），token 重映射管不到，只能按选择器覆盖。
@@ -1092,13 +1147,47 @@ body.mm-theme dialog h3 { color: var(--mm-navy); }
  */
 
 /* —— 统计页：分析卡 / 今日面板 / 热力图 —— */
-body.mm-theme .analytics { background: #fff; border: 0; border-radius: var(--mm-card-radius); padding: var(--mm-pad); }
+body.mm-theme .analytics {
+  position: relative;
+  background: #fff;
+  border: 0;
+  border-radius: var(--mm-card-radius);
+  padding: calc(var(--mm-bar-h) + var(--mm-pad)) var(--mm-pad);
+}
 body.mm-theme .analytics-chart {
   background: #fff;
   border: 1px solid var(--border-soft);
   border-radius: 22px;
   padding: 22px 24px;
   box-shadow: var(--mm-soft);
+}
+/* 热力图那块是直接挂在 #heatmapHost 下的一级面板（不像别的图表嵌在 .analytics 里），
+   所以它也得算一个官方大盒子：同样的圆角、硬阴影和上下横条 */
+body.mm-theme .heatmap-top > .analytics-chart {
+  position: relative;
+  border: 0;
+  border-radius: var(--mm-card-radius);
+  padding: calc(var(--mm-bar-h) + var(--mm-pad)) var(--mm-pad);
+  box-shadow: var(--mm-card-shadow);
+}
+body.mm-theme .heatmap-top > .analytics-chart::before,
+body.mm-theme .heatmap-top > .analytics-chart::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: var(--mm-bar-w);
+  height: var(--mm-bar-h);
+  background: var(--mm-purple);
+  transform: translateX(-50%);
+}
+body.mm-theme .heatmap-top > .analytics-chart::before {
+  top: 0;
+  border-radius: 0 0 var(--mm-bar-h) var(--mm-bar-h);
+}
+body.mm-theme .heatmap-top > .analytics-chart::after {
+  bottom: 0;
+  border-radius: var(--mm-bar-h) var(--mm-bar-h) 0 0;
+  background: var(--mm-pink);
 }
 body.mm-theme .analytics-chart h3 { color: var(--mm-navy); font-weight: 800; }
 body.mm-theme .analytics-chart h4 { color: var(--muted); }
@@ -1129,10 +1218,11 @@ body.mm-theme .analytics-track i { background: linear-gradient(90deg, #38c46b, v
 body.mm-theme .analytics-bar-row b { color: var(--mm-navy); }
 
 body.mm-theme .today-panel {
+  position: relative;
   background: #fff;
   border: 0;
   border-radius: var(--mm-card-radius);
-  padding: var(--mm-pad);
+  padding: calc(var(--mm-bar-h) + var(--mm-pad)) var(--mm-pad);
   box-shadow: var(--mm-card-shadow);
 }
 body.mm-theme .today-metrics > div,
@@ -1296,7 +1386,7 @@ body.mm-theme .circle-feed-head {
 @supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
   body.mm-theme .dx-page-intro,
   body.mm-theme .circle-feed-head {
-    background: rgba(255, 255, 255, .74);
+    background: rgba(255, 255, 255, .88);
     -webkit-backdrop-filter: blur(12px) saturate(1.2);
     backdrop-filter: blur(12px) saturate(1.2);
   }
@@ -1315,12 +1405,8 @@ body.mm-theme .dx-rules {
 body.mm-theme .dan-disclaimer,
 body.mm-theme .dan-msg { color: var(--muted); }
 body.mm-theme .today-section-title { color: var(--mm-navy); }
-body.mm-theme .help-page > p {
-  color: #3d3a46;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, .95), 0 -1px 0 rgba(255, 255, 255, .95),
-    1px 0 0 rgba(255, 255, 255, .95), -1px 0 0 rgba(255, 255, 255, .95), 0 0 10px rgba(255, 255, 255, .9);
-}
-/* ============ 18. 深色模式开关（顶栏右端，官方 .header--btn 的圆钮语言） ============ */
+body.mm-theme .help-page > p { color: #3d3a46; }
+/* ============ 16. 深色模式开关（顶栏右端，官方 .header--btn 的圆钮语言） ============ */
 
 body.mm-theme .mm-theme-btn {
   position: relative;
@@ -1354,11 +1440,8 @@ body.mm-theme .mm-theme-btn:focus-visible { outline: 3px solid var(--mm-pink-hot
   body.mm-theme .mm-theme-btn { width: 44px; height: 44px; margin-left: auto; }
   body.mm-theme .mm-theme-btn svg { width: 21px; height: 21px; }
 }
-/* 菜单展开时锁住滚动：overflow 挂到 body 上拦不住 html 那只滚动条，
-   于是深色面板右上角会露出一截浅色滑块 */
-html.mm-menu-open { overflow: hidden; }
 
-/* ============ 19. 换主题的那一帧 ============
+/* ============ 17. 换主题的那一帧 ============
    页面里只有一部分元件带 transition（卡片、按钮、输入框），换主题时它们会慢半拍淡过去，
    看上去就像「有的卡片没跟着换皮」。theme.js 在改 data-mm-theme 之前先加上
    .mm-theme-switching，两帧后摘掉 —— 这一帧内所有过渡停用，整页同时换色。 */
@@ -1370,7 +1453,7 @@ html.mm-theme-switching *::after { transition: none !important; }
 html.mm-theme-switching .mm-theme-btn { transition: background .2s, border-color .2s, box-shadow .2s !important; }
 html.mm-theme-switching .mm-theme-btn svg > * { transition: opacity .2s, transform .3s var(--mm-ease-out) !important; }
 
-/* ============ 16. 与官方的偏差（改这里之前先想清楚） ============
+/* ============ 18. 与官方的偏差（改这里之前先想清楚） ============
  *
  * 1) 中日韩字形：官方 `font-family:"M PLUS 1p",sans-serif`，但 M PLUS 1p 没有简体字，
  *    所以中文回落到系统字体（雅黑/苹方/思源）。数字与拉丁字母仍是官方的 M PLUS 1p ——
@@ -1388,8 +1471,12 @@ html.mm-theme-switching .mm-theme-btn svg > * { transition: opacity .2s, transfo
  *    题名、平台、通过时间都是短字段，行高收到 95px（一屏六条），大盒子的外观不变。
  * 7) 数据页的图表：官方没有等价界面，图表由 stat-charts.js 用画布画，配色按明暗两套
  *    写在脚本里（CSS 变量管不到 canvas），换主题时由 stats-page.js 重画。
+ * 8) 符号字形：官方那套 webfont 自己画箭头、方块、✓ 这类符号；M PLUS 1p 的 latin 子集
+ *    没覆盖它们（会被画成一根没有箭头的斜线），所以 fonts.css 另外声明了一个只圈这些码位、
+ *    指向系统符号字体的 "M PLUS 1p Symbols"，排在 M PLUS 1p 之后。
  *
- * 背景没有偏差：整页复用官网那份动态背景（public/vendor/maimai/bg.html，
+ * 背景没有偏差：整页复用官网那份动态背景（public/bg.html，
  * 结构与样式都是归档快照原文），用 iframe 铺在内容下面，官方 CSS 的全局选择器
- * （html/body/.wrapper…）不会碰到本站布局。
+ * （html/body/.wrapper…）不会碰到本站布局。夜版只是换 /assets/night/ 那套贴图，
+ * 结构与参数不变（见 theme-night.css）。
  */

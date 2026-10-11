@@ -5,10 +5,14 @@
  * 所以浅色那一套一个字节都不用改。
  *
  * 背景同样是官方那份动态背景，只是换成夜版贴图：theme.js 给 iframe 发
- * postMessage({mmTheme:'night'})，bg.html 挂上 theme-night.css（见那两个文件）。
+ * postMessage({mmTheme:'dark'})，bg.html 挂上 theme-night.css（见那两个文件）。
  *
  * 底色沿用夜景：深靛蓝面板 + 官方那套紫/粉横条与 14px 硬阴影；卡片、输入框、气泡、
  * 表格、说明卡全部转深色，正文色跟着 token 一起翻。
+ *
+ * 不翻的两类「成品屏」：段位卡/题库卡的卡面（styles.css 里写死的深色渐变）和点开后的
+ * 成绩单（.dx-result / .dan-result-*）—— 它们本来就是一张画好的屏，明暗两版都保留自己的脸，
+ * 翻成夜版反而两不像；外壳（弹窗遮罩、关闭钮）照常跟主题。
  */
 
 /* ============ 1. 调色 ============ */
@@ -34,7 +38,9 @@
   --mm-grey: rgba(255, 255, 255, .18);
   --mm-purple-tint: #231f4c;
   --mm-purple-deep: #d3a1ff;
-  --mm-card-shadow: 14px 14px 0 0 rgba(0, 0, 0, .45);
+  /* 只改硬阴影的颜色，偏移留给 theme.css 里那三档 vw 阶梯 */
+  --mm-card-shadow-color: rgba(0, 0, 0, .45);
+  --mm-brand-mark: url(/algorithm-dx-icon.svg);
   --mm-nav-shadow: 10px 10px 0 rgba(0, 0, 0, .45);
   --mm-soft: 0 10px 26px -14px rgba(0, 0, 0, .65);
   --mm-gradient: linear-gradient(0deg, #1a1f45 6%, #1d2150 16%, #262a63 30%, #332c72 46%,
@@ -144,7 +150,7 @@ html[data-mm-theme="dark"],
 [data-mm-theme="dark"] body.mm-theme .ac-page-heading p,
 [data-mm-theme="dark"] body.mm-theme .stats-toolbar p,
 [data-mm-theme="dark"] body.mm-theme .dx-page-intro p { color: var(--mm-night-muted); }
-/* 数据条里两个写死的深色数字（§10） */
+/* 数据条里两个写死的深色数字（§9） */
 [data-mm-theme="dark"] body.mm-theme .stat.is-ac .stat-value { color: #5fe08f; }
 [data-mm-theme="dark"] body.mm-theme .stat.is-unac .stat-value { color: #ffc266; }
 
@@ -173,10 +179,22 @@ html[data-mm-theme="dark"],
   [data-mm-theme="dark"] body.mm-theme .pager,
   [data-mm-theme="dark"] body.mm-theme .dx-page-intro,
   [data-mm-theme="dark"] body.mm-theme .circle-feed-head {
-    background: rgba(19, 24, 52, .74);
+    background: rgba(19, 24, 52, .88);
     -webkit-backdrop-filter: blur(12px) saturate(1.2);
     backdrop-filter: blur(12px) saturate(1.2);
   }
+}
+
+/* 落在背景花纹上的那几处小字：浅色层给的是白底板，这里换成夜色底板 */
+[data-mm-theme="dark"] body.mm-theme .app > .analytics-note,
+[data-mm-theme="dark"] body.mm-theme .app > #message,
+[data-mm-theme="dark"] body.mm-theme .app > .dan-msg,
+[data-mm-theme="dark"] body.mm-theme .circle-main > #message,
+[data-mm-theme="dark"] body.mm-theme .heatmap-top > .analytics-note,
+[data-mm-theme="dark"] body.mm-theme .help-page > p {
+  background: var(--mm-night-surface-2);
+  box-shadow: 0 8px 20px -14px rgba(0, 0, 0, .9);
+  text-shadow: none;
 }
 
 /* ============ 5. 官方盒子与通用块 ============ */
