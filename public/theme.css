@@ -7,6 +7,9 @@
  * 载入顺序：styles.css → ui.css → theme.css，所以在同权重下本文件覆盖前两者；
  * 少数带 #id 或 .ac-page 前缀的旧规则用 `body.mm-theme` 提权重压过去。
  *
+ * 深色模式是叠加在后面的 theme-dark.css：里面的规则都带 [data-mm-theme="dark"] 前缀，
+ * 只覆盖材质与配色，改浅色那套不用动这个文件。
+ *
  * 背景整页复用官网那份动态背景，见 public/vendor/maimai/bg.html。
  *
  * 与官方的五处有意偏差，见文件末尾「与官方的偏差」。
@@ -271,6 +274,12 @@ body.mm-menu-open .mm-menu-btn span:last-child { transform: translateY(-3.5px) r
     gap: 10px;
   }
   .mm-menu-btn { display: block; }
+  /* 窄屏要同时站下品牌、深色开关和汉堡：品牌收一档，否则 header 会折行成两层
+     （开关自己的尺寸在 §18 的媒体查询里，因为那节的规则排在更后面） */
+  body.mm-theme .site-header { gap: 8px; }
+  body.mm-theme .site-header .brand .mark { width: 46px; height: 28px; }
+  body.mm-theme .site-header .brand-text h1 { font-size: 18px; }
+  .mm-menu-btn { width: 38px; height: 38px; }
   body.mm-theme .site-header .nav {
     position: fixed;
     inset: 0;
@@ -312,6 +321,17 @@ body.mm-menu-open .mm-menu-btn span:last-child { transform: translateY(-3.5px) r
     justify-content: space-between;
   }
   body.mm-theme .site-header .global-sync-bar .auto-sync-status { max-width: none; }
+}
+
+/* 再窄一点（320~380px）品牌、开关、汉堡才挤得下同一行 */
+@media (max-width: 380px) {
+  body.mm-theme .site-header { padding: 0 10px; }
+  body.mm-theme .site-header .brand .mark { width: 40px; height: 24px; }
+  body.mm-theme .site-header .brand-text h1 { font-size: 17px; }
+}
+/* 到 344px 以下只留图标当品牌，把宽度全让给开关和汉堡 */
+@media (max-width: 344px) {
+  body.mm-theme .site-header .brand-text { display: none; }
 }
 
 /* 后台同步状态：绑在胶囊右下角外侧（app.js/auto-sync.js 把它塞进 <header>），
@@ -1225,6 +1245,41 @@ body.mm-theme .help-page > p {
   text-shadow: 0 1px 0 rgba(255, 255, 255, .95), 0 -1px 0 rgba(255, 255, 255, .95),
     1px 0 0 rgba(255, 255, 255, .95), -1px 0 0 rgba(255, 255, 255, .95), 0 0 10px rgba(255, 255, 255, .9);
 }
+/* ============ 18. 深色模式开关（顶栏右端，官方 .header--btn 的圆钮语言） ============ */
+
+body.mm-theme .mm-theme-btn {
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  margin-left: 6px;
+  padding: 0;
+  border: 3px solid var(--mm-purple);
+  border-radius: 100px;
+  background: #fff;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, .2);
+  cursor: pointer;
+  transition: background .2s, border-color .2s, box-shadow .2s;
+}
+body.mm-theme .mm-theme-btn svg { display: block; width: 22px; height: 22px; margin: 0 auto; }
+body.mm-theme .mm-theme-btn svg > * {
+  transform-origin: 50% 50%;
+  transition: opacity .2s, transform .3s var(--mm-ease-out);
+}
+body.mm-theme .mm-theme-btn__moon { fill: var(--mm-navy); }
+body.mm-theme .mm-theme-btn__sun { fill: var(--mm-yellow); }
+/* 浅色模式显示月亮（点了变深色）；深色模式的另一半在 theme-dark.css */
+body.mm-theme .mm-theme-btn__sun { opacity: 0; transform: scale(.4) rotate(-90deg); }
+body.mm-theme .mm-theme-btn:hover { border-color: var(--mm-purple); background: var(--mm-purple); }
+body.mm-theme .mm-theme-btn:hover .mm-theme-btn__moon,
+body.mm-theme .mm-theme-btn:hover .mm-theme-btn__sun { fill: #fff; }
+body.mm-theme .mm-theme-btn:focus-visible { outline: 3px solid var(--mm-pink-hot); outline-offset: 3px; }
+
+@media (max-width: 1000px) {
+  body.mm-theme .mm-theme-btn { width: 38px; height: 38px; margin-left: auto; }
+  body.mm-theme .mm-theme-btn svg { width: 19px; height: 19px; }
+}
+
 /* ============ 16. 与官方的偏差（改这里之前先想清楚） ============
  *
  * 1) 中日韩字形：官方 `font-family:"M PLUS 1p",sans-serif`，但 M PLUS 1p 没有简体字，

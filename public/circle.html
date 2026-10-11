@@ -1,8 +1,9 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>题友圈 · Algorithm DX</title><meta name="color-scheme" content="light"><link rel="icon" href="/algorithm-dx-icon.svg"><link rel="stylesheet" href="/vendor/maimai/fonts.css"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/circle.css"><link rel="stylesheet" href="/ui.css"><link rel="stylesheet" href="/theme.css">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>题友圈 · Algorithm DX</title><meta name="color-scheme" content="light dark">
+<script>/* 首屏前定好主题，避免先亮后暗 */(function(){try{var t=localStorage.getItem('mm-theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.mmTheme=t;document.documentElement.style.colorScheme=t;}catch(e){document.documentElement.dataset.mmTheme='light';}})();</script><link rel="icon" href="/algorithm-dx-icon.svg"><link rel="stylesheet" href="/vendor/maimai/fonts.css"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/circle.css"><link rel="stylesheet" href="/ui.css"><link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="/theme-dark.css">
 </head>
-<body class="mm-theme"><iframe class="mm-bg-frame" src="/vendor/maimai/bg.html" title="" aria-hidden="true" tabindex="-1" scrolling="no"></iframe>
+<body class="mm-theme"><iframe class="mm-bg-frame" data-src="/vendor/maimai/bg.html" title="" aria-hidden="true" tabindex="-1" scrolling="no"></iframe>
 
 <header class="topbar site-header">
   <a class="brand" href="/">
@@ -18,6 +19,10 @@
     <a class="btn btn-ghost" href="/?admin=1">账号管理</a>
     <a class="btn btn-ghost" href="/help.html">使用指南</a>
   </nav>
+  <button class="mm-theme-btn" id="mmThemeBtn" type="button" role="switch" aria-checked="false" aria-label="深色模式" title="切换到深色模式"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="mm-theme-btn__moon" d="M20.2 14.6A8.7 8.7 0 0 1 9.4 3.8a8.7 8.7 0 1 0 10.8 10.8Z"/><circle class="mm-theme-btn__sun" cx="12" cy="12" r="4.7"/></svg></button>
+  <button class="mm-menu-btn" id="mmMenuBtn" type="button" aria-expanded="false" aria-controls="mmNav" aria-label="打开菜单">
+    <span></span><span></span>
+  </button>
 </header><main class="app circle-app">
 
 <section class="circle-hero"><div><span class="circle-eyebrow">TOGETHER, ONE PROBLEM AT A TIME</span><h2>每一份坚持，都有回响。</h2><p>看看关注的人在挑战什么，也为自己的下一题寻找灵感。</p></div><a class="btn btn-primary" href="/?admin=1">＋ 添加题友</a></section>
