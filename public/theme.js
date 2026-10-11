@@ -1,11 +1,14 @@
 /**
- * maimai 官网皮肤的三件小事：深色模式开关、移动端菜单开关、回到顶部。
+ * maimai 官网皮肤的行为层：深色模式开关、移动端菜单开关、回到顶部。
  *
  * 只做这一层需要的行为，不碰 app.js 的数据逻辑；无依赖、原生 ESM。
  *
- * 深色模式：
+ * 深色模式（主题的唯一写入口，其它模块只读 dataset.mmTheme）：
  *   · 主题落在 <html data-mm-theme="light|dark">，首屏由各页 <head> 里的一小段脚本先定好，
- *     这里只负责开关、记忆（localStorage）和把主题转告背景 iframe。
+ *     这里负责开关、记忆（localStorage）、跟随系统，以及下面这些跟着主题走的东西：
+ *       开关的 aria-checked 与 title、iframe 背景的主题、
+ *       画布重画（发 mm-theme-change）、换皮那一帧的过渡开关。
+ *     品牌图标不用 JS：它读 <html> 上的主题走 CSS 背景，首帧就是对的。
  *   · 背景是 iframe 里的官方动态页，换主题不重载它，改发 postMessage 就地换贴图，
  *     官方那套入场动画不会重播。
  */
@@ -29,8 +32,8 @@ const bgFrame = document.querySelector('.mm-bg-frame');
 
 function tellBackground(theme) {
   if (!bgFrame || !bgFrame.contentWindow) return;
-  // 背景页认的是 night/day 两个词（见 bg.html 的 message 监听）
-  bgFrame.contentWindow.postMessage({ mmTheme: theme === 'dark' ? 'night' : 'day' }, location.origin);
+  // 背景页认的就是 data-mm-theme 那两个词，见 bg.html 的 message 监听
+  bgFrame.contentWindow.postMessage({ mmTheme: theme }, location.origin);
 }
 
 function applyTheme(theme, { remember = true, notify = true } = {}) {
@@ -40,9 +43,6 @@ function applyTheme(theme, { remember = true, notify = true } = {}) {
   root.classList.add('mm-theme-switching');
   root.dataset.mmTheme = theme;
   root.style.colorScheme = theme;
-  document.querySelectorAll('.brand .mark').forEach((mark) => {
-    mark.src = theme === 'dark' ? '/algorithm-dx-icon.svg' : '/algorithm-dx-icon-light.svg';
-  });
   const button = document.getElementById('mmThemeBtn');
   if (button) {
     button.setAttribute('aria-checked', String(theme === 'dark'));
@@ -80,7 +80,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (ev
 // iframe 的 src 放在 data-src 里，这里按当前主题挂上（深色直接带 ?night=1，
 // 免得先亮后暗地闪一下）；之后切换主题只发消息，不重载，官方入场动画不会重播。
 if (bgFrame) {
-  const baseSrc = bgFrame.getAttribute('data-src') || '/vendor/maimai/bg.html';
+  const baseSrc = bgFrame.getAttribute('data-src') || '/bg.html';
   if (!bgFrame.getAttribute('src')) {
     bgFrame.setAttribute('src', currentTheme() === 'dark' ? `${baseSrc}?night=1` : baseSrc);
   }
@@ -99,6 +99,11 @@ if (menuBtn) {
   menuBtn.addEventListener('click', () => setOpen(!document.body.classList.contains('mm-menu-open')));
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') setOpen(false);
+  });
+  // 窄屏展开、随后把窗口拉宽的话：菜单按钮这时已经隐藏，锁滚动的那条规则也出了媒体查询，
+  // 不收起来就会卡在一个看不见、又关不掉的展开态上
+  window.matchMedia('(min-width: 1001px)').addEventListener('change', (event) => {
+    if (event.matches) setOpen(false);
   });
   // 菜单里点走一项就收起来，否则新页面加载前会停在展开态
   document.querySelectorAll('.site-header .nav a').forEach((link) => {
