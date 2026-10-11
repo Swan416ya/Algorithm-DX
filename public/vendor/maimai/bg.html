@@ -14,12 +14,40 @@
 
   用法：本站页面里 <iframe src="/vendor/maimai/bg.html">，铺满视口、pointer-events:none，
   这样官方 CSS 里那些全局选择器（html/body/.wrapper…）不会碰到正文。
+
+  日夜同页：?night=1 直接进夜版；父页面也可以 postMessage({mmTheme:'night'|'day'}) 切换。
+  切换只是挂上/摘掉 /theme-night.css（也就是换 /assets/night/ 那套贴图），
+  页面不重新加载，官方那套入场动画（rainbow / rainbow-bottom 的 scale .8 → 1）不会重播。
 -->
 <link rel="stylesheet" href="/vendor/maimai/style.css">
 <style>
   /* lib.css（官网的重置表）只做了 margin/padding 归零，这里补上等价的三行 */
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
 </style>
+<script>
+  (function () {
+    var LINK_ID = 'mm-theme-night';
+    function setNight(on) {
+      var link = document.getElementById(LINK_ID);
+      if (on && !link) {
+        link = document.createElement('link');
+        link.id = LINK_ID;
+        link.rel = 'stylesheet';
+        link.href = '/theme-night.css';
+        document.head.appendChild(link);
+      } else if (!on && link) {
+        link.remove();
+      }
+    }
+    setNight(new URLSearchParams(location.search).get('night') === '1');
+    addEventListener('message', function (e) {
+      var d = e.data;
+      if (d && typeof d === 'object' && (d.mmTheme === 'night' || d.mmTheme === 'day')) {
+        setNight(d.mmTheme === 'night');
+      }
+    });
+  })();
+</script>
 </head>
 <body>
 <div class="bg prism">

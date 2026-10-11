@@ -1,0 +1,59 @@
+/* ============ 夜版背景 ============
+ *
+ * 结构、层级、尺寸、动画全部沿用官方 style.css，这里只做一件事：换贴图素材
+ * （全部在 /assets/night/，由官方素材重上色生成，官方文件一个没动）。
+ *
+ * 用哪一层：
+ *   sky / sky-frame   天空渐变（内层渐变块 / 圆角外那圈）
+ *   pattern           渐变上的图案叠加
+ *   shines            闪点
+ *   cloud-*           六片云（白体换成夜蓝，原来的粉/橙暖色描边按原色留着）
+ *   rainbow-bottom    彩虹两端那两片云
+ *   rainbow           彩虹（降成月虹）
+ *   aurora            曙光（夜版无缝镜像图，配合 screen 叠加 + 模糊化成柔光）
+ * 月亮和流星保持官方素材：夜里它们本来就该是最亮的。
+ *
+ * 只有两处不是「换素材」，写在文件末尾并注明原因。
+ */
+
+/* iframe 底色（渐变块圆角之外露出的那一圈由 .bg 的贴图负责） */
+html, body { background: #0e1234; }
+
+/* —— 天空 —— */
+.bg { background-image: url(/assets/night/sky-frame.png); }
+.bg--gradient { background-image: url(/assets/night/sky.png); }
+.bg--gradient:before { background-image: url(/assets/night/pattern.png); }
+.bg--shine { background-image: url(/assets/night/shines.png); }
+
+/* —— 云 —— */
+.bg--cloud__item.i1 { background-image: url(/assets/night/cloud-back-l.png); }
+.bg--cloud__item.i2 { background-image: url(/assets/night/cloud-back-r.png); }
+.bg--cloud__item.i3 { background-image: url(/assets/night/cloud-back-c.png); }
+.bg--cloud__item.i4 { background-image: url(/assets/night/cloud-front-l.png); }
+.bg--cloud__item.i5 { background-image: url(/assets/night/cloud-front-r.png); }
+.bg--cloud__item.i6 { background-image: url(/assets/night/cloud-front-c.png); }
+.bg--rainbow__cloud { background-image: url(/assets/night/rainbow-bottom.png); }
+
+/* —— 彩虹：换成月虹素材；底边要淡出 ——
+   官方那张彩虹贴图的两个「脚」是被图片边界切平的。白天那里正好是渐变底部的白色地平光，
+   切边看不出来；夜里背景压深之后，平直的切边就露出来了，所以让弧在贴近地平线处淡出。 */
+.bg--rainbow:before {
+  background-image: url(/assets/night/rainbow.png);
+  -webkit-mask-image: linear-gradient(0deg, transparent 0, #000 13%);
+  mask-image: linear-gradient(0deg, transparent 0, #000 13%);
+}
+
+/* —— 曙光：换素材之外还要叠加方式，这两行没法省 ——
+   官方曙光贴图右边缘接不上左边缘，夜版素材做成「原图 + 水平镜像」的无缝双宽图；
+   官方那几道竖向光幕在深色天空上会显出硬边方块，所以夜里用 screen 只加光、再模糊成柔光。 */
+.bg--aurora,
+.bg--aurora:before,
+.bg--aurora:after {
+  background-image: url(/assets/night/aurora.png);
+  mix-blend-mode: screen;
+  filter: blur(1.1vw) saturate(1.2) brightness(.95);
+}
+.bg--aurora { opacity: .32; }
+
+/* —— 月亮：素材保持官方，这里只加一圈月光（夜里唯一需要「加光」的地方）—— */
+.bg--moon { filter: drop-shadow(0 0 2.6vw rgba(168, 205, 255, .5)); }
