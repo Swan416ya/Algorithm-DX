@@ -1,6 +1,7 @@
 const colors = ['#5bceac','#62a8ff','#ad93ff','#f2c66d','#f38a96','#68d5e7','#c1cbdd'];
 const node = (tag,text,cls) => { const n=document.createElement(tag); if(text)n.textContent=text; if(cls)n.className=cls;return n; };
-const font = 'system-ui, "Microsoft YaHei", sans-serif';
+// 画布里的字也要跟官方那套字体（@font-face 已加载，render 前会 await document.fonts.ready）
+const font = '"M PLUS 1p", "M PLUS 1p Symbols", "Microsoft YaHei", "PingFang SC", sans-serif';
 function text(ctx, value, x, y, size=12, color='#a9b8cd',align='left') { ctx.font=`${size}px ${font}`;ctx.fillStyle=color;ctx.textAlign=align;ctx.fillText(String(value),x,y); }
 // 画布上的底色、网格和字号不跟 CSS 变量走，得按主题自己取一套；
 // 切换主题时由 stats-page 重新画一遍（导出图片始终用深色海报底，不受这里影响）
