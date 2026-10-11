@@ -258,12 +258,14 @@ body.mm-menu-open .mm-menu-btn span { background: #fff; }
 body.mm-menu-open .mm-menu-btn span:first-child { transform: translateY(3.5px) rotate(45deg); }
 body.mm-menu-open .mm-menu-btn span:last-child { transform: translateY(-3.5px) rotate(-45deg); }
 
-/* 窄一点的桌面端：七项中文标签会顶到胶囊右沿，先收字号与间距 */
+/* 窄一点的桌面端：七项中文标签会顶到胶囊右沿，先收字号与间距。
+   1001~1015px 是最挤的一档，收不够就会折成两层（开关掉到第二行），所以这里收得狠一点 */
 @media (max-width: 1200px) and (min-width: 1001px) {
-  body.mm-theme .site-header .nav { gap: 16px; }
+  body.mm-theme .site-header { gap: 12px; }
+  body.mm-theme .site-header .nav { gap: 12px; }
   body.mm-theme .site-header .nav .btn,
   body.mm-theme .site-header .nav .btn.btn-primary,
-  body.mm-theme .site-header .nav .btn.btn-ghost { font-size: 16px; }
+  body.mm-theme .site-header .nav .btn.btn-ghost { font-size: 15px; }
 }
 
 @media (max-width: 1000px) {
@@ -276,10 +278,16 @@ body.mm-menu-open .mm-menu-btn span:last-child { transform: translateY(-3.5px) r
   .mm-menu-btn { display: block; }
   /* 窄屏要同时站下品牌、深色开关和汉堡：品牌收一档，否则 header 会折行成两层
      （开关自己的尺寸在 §18 的媒体查询里，因为那节的规则排在更后面） */
-  body.mm-theme .site-header { gap: 8px; }
+  body.mm-theme .site-header { gap: 12px; }
   body.mm-theme .site-header .brand .mark { width: 46px; height: 28px; }
   body.mm-theme .site-header .brand-text h1 { font-size: 18px; }
-  .mm-menu-btn { width: 38px; height: 38px; }
+  /* 49px 的圆圈才够手指点：两个圆钮各 44px，中间留 12px，别再挤在一起 */
+  .mm-menu-btn { width: 44px; height: 44px; }
+  /* 菜单展开时整屏铺的是 .nav（z-index:40），品牌、开关、汉堡要浮在它上面，
+     否则开着菜单就够不到深浅色开关了 */
+  body.mm-theme .site-header .brand,
+  body.mm-theme .site-header .mm-theme-btn,
+  body.mm-theme .site-header .mm-menu-btn { position: relative; z-index: 41; }
   body.mm-theme .site-header .nav {
     position: fixed;
     inset: 0;
@@ -524,7 +532,6 @@ body.mm-theme .ac-platform-strip {
 
 body.mm-theme.ac-page .filters {
   display: grid;
-  grid-template-columns: 1fr 1.4fr 1fr;
   gap: clamp(22px, 2.6vw, 34px) clamp(20px, 2.4vw, 32px);
   padding: calc(var(--mm-bar-h) + var(--mm-pad)) var(--mm-pad);
   background: #fff;
@@ -532,6 +539,15 @@ body.mm-theme.ac-page .filters {
   border-radius: var(--mm-card-radius);
   box-shadow: var(--mm-card-shadow);
   margin-bottom: var(--mm-gap);
+}
+/* 官方三栏只在大屏成立。这条 grid-template-columns 原来没带媒体查询，把 styles.css /
+   ui.css 里窄屏的 1~2 栏折叠全压掉了：手机上硬排三栏，每栏只剩 70~100px，
+   平台 chips 竖着堆、状态三连被挤成两行、搜索框只剩一半宽 */
+@media (min-width: 1001px) {
+  body.mm-theme.ac-page .filters { grid-template-columns: 1fr 1.4fr 1fr; }
+}
+@media (max-width: 1000px) {
+  body.mm-theme.ac-page .filters { gap: 16px; }
 }
 
 /* ============ 7. 按钮（官方 .common--btn：红底 + 同色系 3D 底影，按下时沉到阴影上） ============ */
@@ -772,14 +788,14 @@ body.mm-theme.ac-page .cards { display: block; }
 
 body.mm-theme.ac-page .card {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, .85fr) auto;
+  grid-template-columns: minmax(0, 1.6fr) minmax(150px, .62fr) auto;
   grid-template-areas:
     "top     stats foot"
     "context stats foot";
   align-items: center;
-  column-gap: clamp(18px, 2.2vw, 36px);
-  row-gap: 6px;
-  padding: 20px 4px;
+  column-gap: clamp(14px, 1.6vw, 28px);
+  row-gap: 2px;
+  padding: 12px 4px;
   background: transparent;
   border: 0;
   border-bottom: 1px solid var(--border-soft);
@@ -795,15 +811,18 @@ body.mm-theme.ac-page .card.is-unac { background: transparent; border-left: 0; }
   body.mm-theme.ac-page .card:hover { background: #fdf8ff; }
 }
 
-body.mm-theme.ac-page .card .card-top { grid-area: top; justify-content: flex-start; align-items: baseline; gap: 12px; }
-body.mm-theme.ac-page .card .ac-card-context { grid-area: context; }
+body.mm-theme.ac-page .card .card-top { grid-area: top; min-height: 0; justify-content: flex-start; align-items: center; gap: 10px; }
+body.mm-theme.ac-page .card .ac-card-context { grid-area: context; gap: 3px; }
 body.mm-theme.ac-page .card .card-stats { grid-area: stats; }
 body.mm-theme.ac-page .card .card-foot { grid-area: foot; }
+/* 题号/平台/难度挤在一行里就别铺开了：小一号、间距收掉，一行读完 */
+body.mm-theme.ac-page .card-meta > .badge { padding: 2px 8px; font-size: 11px; }
+body.mm-theme.ac-page .ac-card-identity { padding-top: 0; font-size: 11.5px; }
 
 body.mm-theme.ac-page .card-title {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
-  line-height: 1.5;
+  line-height: 1.35;
   color: var(--mm-navy);
 }
 body.mm-theme .card-title a:hover { color: var(--mm-purple); border-bottom-color: var(--mm-purple-soft); }
@@ -814,10 +833,12 @@ body.mm-theme.ac-page .card-stats {
   border: 0;
   border-radius: 0;
   padding: 0;
-  gap: 4px 14px;
+  gap: 2px 14px;
 }
-body.mm-theme.ac-page .card-stats .k { color: var(--muted); font-size: 11px; }
-body.mm-theme.ac-page .card-stats .v { color: var(--mm-navy); font-weight: 700; font-size: 13px; }
+/* 「通过时间 2026-10-10 14:50」并成一行，右侧那一栏才不空得发慌 */
+body.mm-theme.ac-page .card-stats > span { display: flex; align-items: baseline; gap: 8px; }
+body.mm-theme.ac-page .card-stats .k { color: var(--muted); font-size: 11.5px; }
+body.mm-theme.ac-page .card-stats .v { color: var(--mm-navy); font-weight: 700; font-size: 14px; }
 body.mm-theme.ac-page .card-stats > span:first-child { border-bottom: 0; padding-bottom: 0; }
 
 body.mm-theme.ac-page .card-foot {
@@ -825,7 +846,7 @@ body.mm-theme.ac-page .card-foot {
   padding-top: 0;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  gap: 5px;
   flex-wrap: nowrap;
   color: var(--muted);
   text-align: right;
@@ -865,6 +886,33 @@ body.mm-theme .ac-card-tags .badge { background: #f2eef7; border: 0; color: #5f5
   }
   body.mm-theme.ac-page .card:last-child { border-bottom: 1px solid var(--border-soft); }
   body.mm-theme.ac-page .card-foot { justify-content: flex-start; text-align: left; align-items: flex-start; }
+
+  /* 状态三连（全部/已AC/未AC）在窄屏只有 100px 出头，会被挤成两行、
+     右半边还被圆形的选中块盖住：让每组平分整行、文字不许折行，选中块改成圆角矩形 */
+  body.mm-theme.ac-page .filters .tabs { display: flex; width: 100%; }
+  body.mm-theme.ac-page .filters .tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 9px 6px;
+    border-radius: 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  /* 点得着的目标：手机上一行的操作按钮别只有 23px 高 */
+  body.mm-theme .collapse-toggle,
+  body.mm-theme .expand-btn,
+  body.mm-theme .dx-more a,
+  body.mm-theme button.circle-name { min-height: 40px; }
+
+  /* 全年热力图一行放不下（53 列），给它一句滑动提示，别让人以为只有半年 */
+  body.mm-theme #heatmapHost::before {
+    content: '热力图一行放不下一年，左右滑动查看 →';
+    display: block;
+    margin-bottom: 8px;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
 }
 
 /* 手机上按钮不排到半格，直接一列到底 */
@@ -1113,6 +1161,9 @@ body.mm-theme .heat-cell:hover,
 body.mm-theme .heat-cell:focus-visible { outline: 2px solid var(--mm-purple); outline-offset: 1px; }
 
 /* —— DX Rating 页 —— */
+/* 旧样式把 .dx-eyebrow 固定成浅蓝 #8e9fff，白底上只有 2.46 的对比度，
+   和另外两个 eyebrow 一样收进官方紫里 */
+body.mm-theme .dx-eyebrow { color: var(--mm-purple); letter-spacing: 2px; font-weight: 800; }
 body.mm-theme .dx-pages {
   background: #fff;
   border: 1px solid var(--border-soft);
@@ -1146,6 +1197,17 @@ body.mm-theme .circle-sidebar {
   padding: var(--mm-pad);
 }
 body.mm-theme .circle-person { color: var(--mm-navy); border-radius: 18px; }
+/* 窄屏原样式把「我的关注」排成一条横向滚动条：卡片里看不出还能滑，
+   第二个人就停在卡片边缘，名字后面的通过数被切一半。干脆换行排成格子，全都看得见 */
+@media (max-width: 850px) {
+  body.mm-theme #people {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(146px, 1fr));
+    gap: 8px;
+    overflow: visible;
+  }
+  body.mm-theme #people .circle-person { min-width: 0; width: 100%; }
+}
 body.mm-theme .circle-person:hover { background: var(--mm-purple-tint); }
 body.mm-theme .circle-person[aria-pressed="true"] {
   background: var(--mm-purple-tint);
@@ -1204,6 +1266,19 @@ body.mm-theme kbd {
 /* 扫描剩下的浅色字（深色面已经处理完，这几处是字色本身写死的浅色） */
 body.mm-theme .today-total { color: #16883f; }
 body.mm-theme .dx-rank { color: #a35c00; }
+/* 段位卡本身是深色卡面（深蓝底 + 位阶色描边），和主题无关；浅色主题把页面刷白以后，
+   卡面上的字必须跟着卡面走 —— 否则黑字压深蓝，题名/完成度/难度全看不见 */
+body.mm-theme .dx-card { color: #eef1fb; }
+body.mm-theme .dx-card .dx-library-card-foot,
+body.mm-theme .dx-card .dx-library-metrics span,
+body.mm-theme .dx-card .dx-card-id,
+body.mm-theme .dx-card .dx-card-meta,
+body.mm-theme .dx-card .dx-card-name,
+body.mm-theme .dx-card .dx-card-time,
+body.mm-theme .dx-card .dx-pending-id { color: #bcc4dc; }
+body.mm-theme .dx-card .dx-rank { color: var(--rank, #ffd166); }
+body.mm-theme .dx-card .dx-library-title a { color: #f4f6ff; }
+body.mm-theme .dx-card .dx-library-title a:hover { color: #d3a1ff; }
 body.mm-theme .help-page .help-heading p,
 body.mm-theme .help-page > section p,
 body.mm-theme .help-page > section li,
@@ -1276,9 +1351,24 @@ body.mm-theme .mm-theme-btn:hover .mm-theme-btn__sun { fill: #fff; }
 body.mm-theme .mm-theme-btn:focus-visible { outline: 3px solid var(--mm-pink-hot); outline-offset: 3px; }
 
 @media (max-width: 1000px) {
-  body.mm-theme .mm-theme-btn { width: 38px; height: 38px; margin-left: auto; }
-  body.mm-theme .mm-theme-btn svg { width: 19px; height: 19px; }
+  body.mm-theme .mm-theme-btn { width: 44px; height: 44px; margin-left: auto; }
+  body.mm-theme .mm-theme-btn svg { width: 21px; height: 21px; }
 }
+/* 菜单展开时锁住滚动：overflow 挂到 body 上拦不住 html 那只滚动条，
+   于是深色面板右上角会露出一截浅色滑块 */
+html.mm-menu-open { overflow: hidden; }
+
+/* ============ 19. 换主题的那一帧 ============
+   页面里只有一部分元件带 transition（卡片、按钮、输入框），换主题时它们会慢半拍淡过去，
+   看上去就像「有的卡片没跟着换皮」。theme.js 在改 data-mm-theme 之前先加上
+   .mm-theme-switching，两帧后摘掉 —— 这一帧内所有过渡停用，整页同时换色。 */
+html.mm-theme-switching,
+html.mm-theme-switching *,
+html.mm-theme-switching *::before,
+html.mm-theme-switching *::after { transition: none !important; }
+/* 只有开关自己该动：月亮沉下去、太阳升起来，这一下是要给人看的 */
+html.mm-theme-switching .mm-theme-btn { transition: background .2s, border-color .2s, box-shadow .2s !important; }
+html.mm-theme-switching .mm-theme-btn svg > * { transition: opacity .2s, transform .3s var(--mm-ease-out) !important; }
 
 /* ============ 16. 与官方的偏差（改这里之前先想清楚） ============
  *
@@ -1294,6 +1384,10 @@ body.mm-theme .mm-theme-btn:focus-visible { outline: 3px solid var(--mm-pink-hot
  *    按同一比例缩到 40px 高、5px 底影，避免一行按钮撑满半屏。
  * 5) 移动端断点：官方在 769px 就收成汉堡 + 语言胶囊；本站导航是七个中文词，比官方的
  *    SVG 字标更宽，所以断点挪到 1000px（769~1000px 之间也走汉堡菜单）。
+ * 6) 记录列表密度：官方 top--update 一行 157px 高，一屏只看得到三条；本站记录里
+ *    题名、平台、通过时间都是短字段，行高收到 95px（一屏六条），大盒子的外观不变。
+ * 7) 数据页的图表：官方没有等价界面，图表由 stat-charts.js 用画布画，配色按明暗两套
+ *    写在脚本里（CSS 变量管不到 canvas），换主题时由 stats-page.js 重画。
  *
  * 背景没有偏差：整页复用官网那份动态背景（public/vendor/maimai/bg.html，
  * 结构与样式都是归档快照原文），用 iframe 铺在内容下面，官方 CSS 的全局选择器

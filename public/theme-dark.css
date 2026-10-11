@@ -216,8 +216,10 @@ html[data-mm-theme="dark"],
   border-left: 4px solid var(--mm-green);
   color: var(--mm-night-ink);
 }
-[data-mm-theme="dark"] body.mm-theme .heat-cell { border-color: rgba(255, 255, 255, .06); }
-[data-mm-theme="dark"] body.mm-theme .level-0 { background: #1b2145; }
+/* 空格子原来和面板几乎同色（#1b2145 对 #191e42），整年没练的日子直接看不见，
+   图例最短的一格也是空的：抬亮一点，靠白描边分层 */
+[data-mm-theme="dark"] body.mm-theme .heat-cell { border-color: rgba(255, 255, 255, .14); }
+[data-mm-theme="dark"] body.mm-theme .level-0 { background: rgba(255, 255, 255, .09); }
 [data-mm-theme="dark"] body.mm-theme .level-1 { background: #1d4a37; }
 [data-mm-theme="dark"] body.mm-theme .level-2 { background: #256f4a; }
 [data-mm-theme="dark"] body.mm-theme .level-3 { background: #2f9d62; }
@@ -235,7 +237,6 @@ html[data-mm-theme="dark"],
 }
 [data-mm-theme="dark"] body.mm-theme .dx-ranked,
 [data-mm-theme="dark"] body.mm-theme .dx-rank,
-[data-mm-theme="dark"] body.mm-theme .today-total { color: #ffc266; }
 [data-mm-theme="dark"] body.mm-theme .today-total { color: #7ef0a4; }
 
 /* ============ 6. 控件：输入、按钮、气泡、表格、弹窗 ============ */
@@ -260,7 +261,10 @@ html[data-mm-theme="dark"],
   border-color: var(--mm-night-line);
   color: var(--mm-night-dim);
 }
-[data-mm-theme="dark"] body.mm-theme .tab.is-active { background: var(--mm-night-surface-2); color: var(--mm-navy); }
+/* 浅色里这组是「淡紫底 + 白药丸」，深色照搬会变成「紫底 + 深蓝药丸」，看着像反的。
+   夜里的对应关系是「比盒子更深一层的底 + 比底更亮的药丸」 */
+[data-mm-theme="dark"] body.mm-theme .tabs { background: #151a3c; }
+[data-mm-theme="dark"] body.mm-theme .tab.is-active { background: #262d5c; color: var(--mm-navy); box-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
 [data-mm-theme="dark"] body.mm-theme .db-chip {
   background: var(--mm-night-surface-2);
   border-color: var(--mm-night-line);
@@ -299,19 +303,21 @@ html[data-mm-theme="dark"],
 [data-mm-theme="dark"] body.mm-theme .badge.platform { background: rgba(2, 200, 211, .16); color: #7fe6ee; }
 [data-mm-theme="dark"] body.mm-theme .badge.score { background: rgba(255, 151, 42, .16); color: #ffc266; }
 
-/* 提示条：官方那套暖底换成暗底 */
-[data-mm-theme="dark"] body.mm-theme .notice { background: rgba(255, 151, 42, .1); color: #f0dcb4; }
+/* 提示条：浅色那版是实心暖白底，所以深色也必须是实心底 —— 只铺一层 10% 的色纱的话，
+   夜里的云和彩虹会直接透到字缝里（这块正好压在彩虹上）。色纱按同一个比例调进实心底里，
+   颜色关系不变，字下面有底。 */
+[data-mm-theme="dark"] body.mm-theme .notice { background: #2e283c; color: #f0dcb4; }
 [data-mm-theme="dark"] body.mm-theme .notice strong { color: #ffd79a; }
-[data-mm-theme="dark"] body.mm-theme .notice-warn { background: rgba(255, 151, 42, .1); color: #ecd9a4; }
+[data-mm-theme="dark"] body.mm-theme .notice-warn { background: #2e283c; color: #ecd9a4; }
 [data-mm-theme="dark"] body.mm-theme .notice-warn strong { color: #f6dfa8; }
 [data-mm-theme="dark"] body.mm-theme .notice-warn span { color: #d9c48d; }
-[data-mm-theme="dark"] body.mm-theme .notice-ac { background: rgba(75, 224, 112, .1); color: #b6e3bc; }
+[data-mm-theme="dark"] body.mm-theme .notice-ac { background: #1c2f43; color: #b6e3bc; }
 [data-mm-theme="dark"] body.mm-theme .notice-ac strong { color: #d6f0da; }
 [data-mm-theme="dark"] body.mm-theme .notice-ac.is-bad,
-[data-mm-theme="dark"] body.mm-theme .notice-danger { background: rgba(231, 33, 57, .12); color: #ffb9b4; }
+[data-mm-theme="dark"] body.mm-theme .notice-danger { background: #301c3d; color: #ffb9b4; }
 [data-mm-theme="dark"] body.mm-theme .notice-ac.is-bad strong,
 [data-mm-theme="dark"] body.mm-theme .notice-danger strong { color: #ff9d97; }
-[data-mm-theme="dark"] body.mm-theme .notice-neutral { background: rgba(255, 255, 255, .06); color: var(--mm-night-muted); }
+[data-mm-theme="dark"] body.mm-theme .notice-neutral { background: #25294a; color: var(--mm-night-muted); }
 
 /* ============ 7. 题友圈 ============ */
 

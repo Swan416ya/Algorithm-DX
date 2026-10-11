@@ -34,8 +34,12 @@ function tellBackground(theme) {
 }
 
 function applyTheme(theme, { remember = true, notify = true } = {}) {
-  document.documentElement.dataset.mmTheme = theme;
-  document.documentElement.style.colorScheme = theme;
+  // 换皮那一帧先把过渡关掉：只有一部分卡片/按钮带 transition，不关的话它们会慢半拍，
+  // 看上去像「有的卡片没跟着换主题」。两帧后摘掉，之后 hover 之类的过渡照旧。
+  const root = document.documentElement;
+  root.classList.add('mm-theme-switching');
+  root.dataset.mmTheme = theme;
+  root.style.colorScheme = theme;
   document.querySelectorAll('.brand .mark').forEach((mark) => {
     mark.src = theme === 'dark' ? '/algorithm-dx-icon.svg' : '/algorithm-dx-icon-light.svg';
   });
@@ -52,6 +56,9 @@ function applyTheme(theme, { remember = true, notify = true } = {}) {
     }
   }
   if (notify) tellBackground(theme);
+  // 画布里的图形是 JS 画的，CSS 换皮管不到，交给需要重画的模块自己接
+  document.dispatchEvent(new CustomEvent('mm-theme-change', { detail: { theme } }));
+  requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('mm-theme-switching')));
 }
 
 // 首屏脚本已经定过主题，这里补齐图标/开关状态，并把主题同步给背景
@@ -85,6 +92,8 @@ const menuBtn = document.getElementById('mmMenuBtn');
 if (menuBtn) {
   const setOpen = (open) => {
     document.body.classList.toggle('mm-menu-open', open);
+    // html 上也挂一份：只锁 body 拦不住 html 那只滚动条，深色面板右上角会露一截浅色滑块
+    document.documentElement.classList.toggle('mm-menu-open', open);
     menuBtn.setAttribute('aria-expanded', String(open));
   };
   menuBtn.addEventListener('click', () => setOpen(!document.body.classList.contains('mm-menu-open')));
