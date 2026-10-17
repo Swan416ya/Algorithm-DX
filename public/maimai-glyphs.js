@@ -57,6 +57,54 @@ export function trackLabel() {
 }
 
 /**
+ * 达成率标题那一行 —— 用原版素材，不用页面自己拼的文字。
+ *
+ * 只画 UI_RSL_Text_Achievement（prefab: AchievementLogo，296x41，抓图 247x40）。
+ * prefab 里还有一条 UI_RSL_Base_Achievement（Achievment_Base/Base_01，抓图 1667x107）
+ * —— 那是 1667px 宽、比 903 的画面还宽的长条，本是溢出裁切的装饰底；
+ * 整条铺进这一行会变成一大片空色（文字只占最左一点），看着就是"意义不明的色块"，
+ * 所以不画它。
+ */
+export function achievementLabel() {
+  const wrap = document.createElement('span');
+  wrap.className = 'mm-achv-label';
+  wrap.append(glyph('UI_RSL_Text_Achievement.png', { className: 'mm-glyph mm-achv-label-text' }));
+  return wrap;
+}
+
+/**
+ * 结算勋章：一块底座 + 两枚徽章。
+ *
+ * prefab（UI_MedalDisplay，capture 250x125@(144,553)）：
+ *   Medal_Base            UI_RSL_MedalBase  326x153 原生 -> capture 273x130@(172,552)  底座
+ *   v110   (左槽)          capture 83x83@(227,574)   ->  AP_Base/AP_Text_01
+ *   Null_FS_FSD_Medal(右槽) capture 83x83@(318,574)   ->  FSD_Base/FSD_Text_01
+ * 两槽间距 318-227 = 91 capture；槽相对底座左边 227-172 = 55 capture。
+ * 整组中心 x=314，段位中心 x=292（差 22 capture ~ 26 原生），基本水平居中。
+ */
+export function medalPair({ cleanSolve = true } = {}) {
+  const wrap = document.createElement('span');
+  wrap.className = 'mm-medals';
+  wrap.append(glyph('UI_RSL_MedalBase.png', { className: 'mm-glyph mm-medal-base' }));
+  // 两枚圆片是 Codex 生图产出的（青绿 Accepted / 香槟金 Clean Solve），
+  // 官方素材 UI_RSL_AP_* / UI_RSL_FSD_* 是分「底 + 字」两层、画风偏写实，
+  // 这里按需求换成配套的一对圆章。
+  const ap = document.createElement('img');
+  ap.className = 'mm-medal mm-medal--ap';
+  ap.src = '/assets/maimai/medal-accepted.png';
+  ap.alt = 'Accepted';
+  wrap.append(ap);
+  const cs = document.createElement('img');
+  cs.className = 'mm-medal mm-medal--fsd';
+  cs.src = '/assets/maimai/medal-cleansolve.png';
+  cs.alt = 'Clean Solve';
+  // 语义：有 AC 就有 Accepted；AC 之外还有 WA/TLE/RE/CE 就不算 Clean Solve
+  cs.dataset.earned = cleanSolve ? 'true' : 'false';
+  wrap.append(cs);
+  return wrap;
+}
+
+/**
  * 轨道号码（"03"）。
  *
  * 官方不是写文字，是【数字精灵】+【同位的一块实心白块】两层：

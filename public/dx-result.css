@@ -66,7 +66,11 @@
 .dx-result-level strong { font-size:28px; letter-spacing:-1px; text-shadow:2px 2px #562795; }
 .dx-result-achievement-section { position:relative; margin:18px -28px 0; padding:0 28px 2px; }
 .dx-result-achievement-top { display:flex; gap:12px; align-items:center; }
-.dx-result-achievement-label { margin-left:-28px; padding:5px 16px 5px 28px; background:linear-gradient(100deg,#082c92,#057cf4); border-radius:0 0 16px 0; color:#fff; font-size:14px; font-weight:900; white-space:nowrap; }
+/* 这一条原来自己画了蓝渐变底 + 右下圆角（linear-gradient(100deg,#082c92,#057cf4) / border-radius:0 0 16px 0）
+   —— 那是改造前文字标签的样式残留，会在 ACHIEVEMENT 上方留下一根空蓝条。
+   现在标题只用原版精灵，底由精灵自带，所以这里不再画任何底色。 */
+.dx-result-achievement-label { margin-left:-30px; margin-top:-10px; padding:0; background:none;
+  border-radius:0; color:inherit; }
 .dx-result-achievement-label > span { margin-left:12px; color:#80ebff; letter-spacing:2px; }
 /* 看板娘：贴在结算单右上角，压在面板之下（后面那些兄弟节点有底色，会自然盖住它），
    这样它是从内容后面探出来的，不会挡住 TRACK 行，也不挡点击（设置入口在页头） */
@@ -74,12 +78,32 @@
 .dx-result-mascot-img { max-width:196px; max-height:300px; object-fit:contain; filter:drop-shadow(0 6px 10px #243c8a55); }
 /* 窄屏放不下就收起来：它会压到 TRACK/达成率那几行上 */
 @media (max-width:640px) { .dx-result-mascot { display:none; } }
-.dx-result-achievement { position:relative; margin:8px -28px 0; padding:3px 28px; font-size:clamp(44px,7.6vw,76px); font-weight:1000; letter-spacing:-3px; font-variant-numeric:tabular-nums; line-height:1.05; color:#ffe85a; -webkit-text-stroke:1.4px #ba3915; background:linear-gradient(100deg,#ffffffd9,#ffffff70 80%,#fff2); text-shadow:2px 2px #fff,3px 4px #e68c31; }
+/* 这一条原来自己画了淡白横带（linear-gradient(100deg,#ffffffd9,...)）
+   外加文字时代的 text-shadow / text-stroke —— 现在数字是官方精灵，
+   prefab 里数字直接画在画面上、底下没有任何垫层，所以全部去掉，只留排版。 */
+.dx-result-achievement { position:relative; margin:8px -28px 0; padding:3px 28px;
+  line-height:1.05; }
 /* 达成率数字是官方金色精灵。--n 是整数部分的格子高：官方抓图里是 98px（900px 画面），
    弹窗比它略窄，取 90px 视觉上等大；小数点后和 '%' 的大小由 --n 按官方比例推。 */
 .dx-result-achievement-value { --n: 90px; }
 .dx-result-achievement-value .mm-number { line-height:0; }
-.dx-result-record { position:absolute; right:30px; bottom:23px; transform:rotate(-8deg); padding:4px 7px; color:#e0373d; border:2px solid #e0373d; border-radius:4px; font-size:11px; letter-spacing:1px; font-weight:900; background:#fff3cda8; }
+/* 数字样式已回退到上个 commit（2024 的平铺排法）。只保留两处【位置】调整：
+   1) 整体左移 30px —— prefab 里整数 -215 / 小数 +4 / 百分号 +273，中心在 +29 偏右
+   2) 百分号底边和小数下端对齐（align-self:flex-end，不写死 translateY）
+   数字底下那层白色半透明底板删掉了 —— prefab 里数字直接画在画面上，没有垫层。*/
+.dx-result-achievement-value .mm-number { align-items:flex-end;
+  transform:translateX(-6px); }
+.dx-result-achievement-value .mm-number-percent { align-self:flex-end; }
+/* 达成率标题：只画原版的字 UI_RSL_Text_Achievement（prefab 抓图 247x40）。
+   那条 UI_RSL_Base_Achievement（408x122，prefab 抓图 1667x107）不再画 ——
+   它比画面还宽、本是溢出裁切的装饰底，铺进这一行会露出它那个深藏青的左端头，
+   在左边看起来就是一块"意义不明的色块"。 */
+.dx-result-achievement-label { position:relative; display:block; height:41px; }
+.dx-result-achievement-label .mm-achv-label-text { display:block; height:41px; width:auto; }
+
+/* NEW RECORD：原来 right:30px; bottom:23px 被甩到弹窗最右下，
+   原版它是挨着【小数那一段的上方偏中】。改成相对数字行定位。 */
+.dx-result-record { position:absolute; right:6%; top:52%; transform:rotate(-8deg); padding:4px 7px; color:#e0373d; border:2px solid #e0373d; border-radius:4px; font-size:11px; letter-spacing:1px; font-weight:900; background:#fff3cda8; }
 .dx-result-record[hidden] { display:none; }
 .dx-result-main { display:grid; grid-template-columns:1fr 250px; gap:24px; align-items:center; padding:20px 0 14px; }
 .dx-result-performance { min-width:0; }
@@ -163,7 +187,6 @@
 /* Gloss follows the cabinet's gold achievement lettering and enamel green AC medal. */
 .dx-result-clear { margin-bottom:15px; }
 .dx-result-achievement { text-shadow:none; -webkit-text-stroke:0; }
-.dx-result-achievement-value { display:inline-block; background:linear-gradient(180deg,#fffde8 0%,#fff49b 18%,#fffad3 28%,#ffdd4d 40%,#ffb920 58%,#fff091 78%,#ffd543 100%); background-clip:text; -webkit-text-fill-color:transparent; -webkit-text-stroke:1.4px #bd3819; filter:drop-shadow(1px 0 #fffbe0) drop-shadow(-1px 0 #fffbe0) drop-shadow(0 2px #fffbe0) drop-shadow(1px 2px #d67b21); }
 .dx-result-record { transform:none; border:2px solid #fff4bd; border-radius:7px; padding:6px 10px; color:#244a98; background:linear-gradient(180deg,#fffbd9 0%,#fff198 36%,#fffbe1 44%,#f6cb42 48%,#ffe67a 100%); box-shadow:0 0 0 1px #cf9c2b,0 2px 0 #c7953580,0 0 12px #fff8ad80; text-shadow:0 1px #fff; font-style:italic; }
 .dx-result-medal { border:5px solid #4fb841; outline:2px solid #216e3b; background:radial-gradient(ellipse at 35% 15%,#b7f37b 0%,#52c54d 28%,#179548 62%,#06763e 100%); box-shadow:inset 0 0 0 2px #e6ffc1,inset 0 -6px 10px #045f3d55,0 2px 0 #fff,0 5px 8px #38597050; text-shadow:0 1px #074a2c,0 2px #0b663c; }
 .dx-result-medal::before { inset:-6px; border:0; outline:1px solid #236c3e; background:repeating-conic-gradient(from -8deg,#f1ffc3 0deg 13deg,#7dda62 13deg 25deg,#218946 25deg 30deg); mask:radial-gradient(circle,transparent 62%,#000 64%); }
@@ -395,3 +418,40 @@
 }
 .dx-board-rating-frame .dx-result-total-score { box-sizing:border-box; max-width:100%; }
 .dx-board-rating-frame .dx-result-total-score strong { font-size:clamp(20px,3vw,28px); }
+
+/* 结算勋章：底座 + 两枚官方徽章。尺寸位置来自 prefab（capture 基准），
+   弹窗宽 820 / 画面 903 => 缩放 0.908：
+     底座 UI_RSL_MedalBase  273x130 capture -> 248x116
+     单枚徽章               83x83  capture ->  75x75
+     两槽间距               91     capture ->  83
+   ⚠️ 必须写两层选择器（.mm-medals .mm-medal-xxx）。maimai-glyphs.css 后加载，
+      里面 .mm-glyph{width:auto} 只有一层，但顺序在后，会把一层的 width 全压掉 ——
+      底座就会按原生 326px 渲染、徽章按 86px，两枚叠在一起。
+      这和加号那次是同一类 bug：权重不够。 */
+.dx-result-badges { display:block; }
+.mm-medals { position:relative; display:block; width:248px; height:118px;
+  transform:translateY(-30px); }
+.mm-medals .mm-medal-base { position:absolute; left:0; bottom:0;
+  width:248px; height:auto; }
+.mm-medals .mm-medal { position:absolute; bottom:23px; width:75px; height:75px;
+  display:block; object-fit:contain; }
+/* Clean Solve 没达成：变灰 + 压暗（Accepted 只要有 AC 就一定有） */
+.mm-medals .mm-medal[data-earned="false"] { filter:grayscale(1) brightness(.72);
+  opacity:.55; }
+.mm-medals .mm-medal--ap { left:45px; }
+.mm-medals .mm-medal--fsd { left:128px; }
+.mm-medals .mm-medal-skin { position:absolute; left:0; top:0;
+  width:75px; height:75px; }
+.mm-medals .mm-medal-text { position:absolute; left:0; top:6px;
+  width:75px; height:auto; }
+
+/* 段位整体往上一点（用户要求） */
+.dx-result-rank { transform:translateY(-8px); }
+
+/* 达成率：小数位之间收紧、整组底部对齐 */
+.dx-result-achievement-value .mm-number-frac + .mm-number-frac { margin-left:-5px; }
+.dx-result-achievement-value .mm-number-int + .mm-number-int { margin-left:-6px; }
+
+/* 底下的 DX RATING 框整体往上提一点（用户要求） */
+.dx-result-bottom .dx-result-total { transform:translateY(-14px); }
+.dx-result-total-delta { top:calc(100% + 3px); }

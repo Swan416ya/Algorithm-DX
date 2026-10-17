@@ -1,6 +1,6 @@
 import { cfRatingColor } from './cf-rating-colors.js';
 import { mascotImage } from './mascot.js';
-import { clearWord, trackLabel, trackNumber, rankWord, scoreNumber, achievementColour, NUMBER_COLOURS } from './maimai-glyphs.js';
+import { clearWord, trackLabel, trackNumber, rankWord, scoreNumber, achievementColour, achievementLabel, medalPair, NUMBER_COLOURS } from './maimai-glyphs.js';
 import { rankOf } from './dx-rank.js';
 
 export function initDxTimer({ getUser, onComplete, onResultClose }) {
@@ -17,10 +17,10 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
     <h2 id="dxResultTitle" class="dx-result-clear"></h2>
     <div class="dx-result-track"><div class="dx-result-track-icon" aria-hidden="true">DX<span>✦</span></div><div class="dx-result-track-content"><div class="dx-result-track-heading"><span class="dx-result-kind"></span><span class="dx-result-problem"></span><i>DX</i></div><h3 class="dx-result-name"></h3></div><div class="dx-result-level"><small>LEVEL</small><strong></strong></div></div>
     <section class="dx-result-achievement-section" aria-label="达成率结算">
-      <div class="dx-result-achievement-top"><div class="dx-result-achievement-label">达成率 <span>›››✦</span></div></div>
-      <div class="dx-result-achievement"><span class="dx-result-achievement-value"></span></div><span class="dx-result-record" hidden>NEW RECORD</span>
+      <div class="dx-result-achievement-top"><div class="dx-result-achievement-label"></div></div>
+      <div class="dx-result-achievement"><span class="dx-result-achievement-value"></span></div>
     </section>
-    <div class="dx-result-main"><div class="dx-result-performance"><div class="dx-result-rank" aria-label="本次评级"></div><div class="dx-result-badges"><div class="dx-result-award"><span class="dx-result-medal" aria-label="accepted"><b>AC</b><small>Accepted</small></span></div><div class="dx-result-award dx-result-award-cs"><span class="dx-result-medal dx-result-medal-cs" aria-label="clean solve"><b>CS</b><small>Clean Solve</small></span></div></div></div>
+    <div class="dx-result-main"><div class="dx-result-performance"><div class="dx-result-rank" aria-label="本次评级"></div><div class="dx-result-badges"></div></div>
       <div class="dx-result-detail"><div class="dx-result-time"><small>PLAY TIME</small><strong></strong></div><div class="dx-result-verdicts" aria-label="本次提交判定"></div><div class="dx-result-rating"><small>Rating</small><strong></strong><span class="dx-result-single-delta"></span></div></div>
     </div>
     <div class="dx-result-bottom"><div class="dx-result-total"><div class="dx-result-total-label"><b>DX</b><span>RATING</span></div><div class="dx-result-total-score"><strong></strong></div><span class="dx-result-total-delta"></span></div>
@@ -73,6 +73,8 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
     const numberColour = shownAchievement
       ? (NUMBER_COLOURS.includes(previewParams.get('achvColor')) ? previewParams.get('achvColor') : achievementColour(shownAchievement))
       : 'Gold';
+    // 达成率标题用原版素材（UI_RSL_Base_Achievement 长条 + UI_RSL_Text_Achievement 字）
+    field('.dx-result-achievement-label').replaceChildren(achievementLabel());
     field('.dx-result-achievement-value').replaceChildren(
       shownAchievement ? scoreNumber(shownAchievement + '%', { colour: numberColour }) : document.createTextNode('已通关'));
     // 段位只跟达成率有关，所以直接由上面显示的数字推 —— 两个数据源打架就会画出「88.8888 配 S」
@@ -119,7 +121,6 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
     const signed = (number, digits) => (number>=0?'+':'−')+Math.abs(number).toFixed(digits);
     const previousAchievement = previous?.achievementShown ?? 0;
     const improvement = score && comparison ? score.achievementShown-previousAchievement : null;
-    field('.dx-result-record').hidden = !comparison || !score || result.practiceKind==='assisted' || (previous && improvement<=0);
     field('.dx-result-single-delta').textContent = score && previous ? signed(score.rating-previous.rating,1) : '';
     const totalText = comparison ? comparison.ratingAfter.toFixed(1) : '—';
     const totalFrame = field('.dx-result-total');
@@ -138,10 +139,13 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
       digits.append(digit);
     }
     field('.dx-result-total-delta').textContent = comparison ? signed(comparison.ratingDelta,1) : '—';
+    // cleanSolve 原本用来切换 AC/CS 那对 CSS 勋章；现在勋章是官方精灵
+    // （medalPair()：底座 + AP/FSD），这一段只剩判定，留着以后接精灵的亮暗。
     const cleanSolve = result.verdicts.AC > 0 && Object.entries(result.verdicts).every(([verdict, count]) => verdict === 'AC' || count === 0);
-    field('.dx-result-award-cs').hidden = !cleanSolve;
-    field('.dx-result-medal-cs').setAttribute('aria-label','clean solve');
-    field('.dx-result-award-cs').title = 'Clean Solve · AC only';
+    // 勋章挂在这里：Accepted 有 AC 就有；Clean Solve 要求 AC 之外全为 0。
+    field('.dx-result-badges').replaceChildren(medalPair({ cleanSolve }));
+    // 勋章：官方底座 + 两枚圆章。Accepted 有 AC 就有；Clean Solve 要求 AC 之外全为 0。
+    // cleanSolve 在下面才算，所以这里必须放在它后面挂载。
     field('.dx-result-verdicts').replaceChildren();
     for (const verdict of ['AC','WA','TLE','RE','CE','MLE','OTHER','PENDING']) {
       if (['MLE','OTHER','PENDING'].includes(verdict) && !result.verdicts[verdict]) continue;
