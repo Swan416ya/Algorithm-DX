@@ -1165,6 +1165,25 @@ async function focusResultOnBoard({ userId, problemId }) {
 const timerController=initDxTimer({getUser:()=>state.userId,onComplete:()=>load(true),onResultClose:focusResultOnBoard});
 await loadMeta();
 await timerController.refresh().catch(error=>{$('timerStatus').textContent=error.message;});
+// ?resultPreview=1 用样例把结算弹窗直接弹出来：调这块 UI 时不用真做完一道题。
+// 再配 ?achievement=98.7654 能试不同达成率下的排版。
+if (pageParams.get('resultPreview') === '1') {
+  timerController.previewResult({
+    problemId: '1999A',
+    result: {
+      dailyTrack: 3,
+      difficulty: '1700',
+      title: 'Two Permutations',
+      practiceKind: 'first',
+      seconds: 1837,
+      // 段位不用给：弹窗按达成率自己查表（评级只跟达成率有关），
+      // 这样显示的数字和段位不会打架
+      score: { achievementShown: 98.7654, rating: 1523.4 },
+      comparison: { previousScore: { achievementShown: 97.2, rating: 1500.1 }, ratingAfter: 1523.4, ratingDelta: 23.3 },
+      verdicts: { AC: 12, WA: 0, TLE: 0, RE: 0, CE: 0 },
+    },
+  });
+}
 renderYearOptions([currentYear()]);
 await refresh();
 if (pageParams.get('add') === '1' && state.userId !== null) {

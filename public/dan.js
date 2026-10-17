@@ -1,5 +1,6 @@
-﻿import { startAutoSync } from './auto-sync.js';
+import { startAutoSync } from './auto-sync.js';
 import { cfRatingColor } from './cf-rating-colors.js';
+import { trackLabel, trackNumber } from './maimai-glyphs.js';
 
 /*
  * 随机抽题 / 每日一题 / 段位認定 的页面逻辑。
@@ -430,7 +431,7 @@ function buildStageDialog() {
   dialog.setAttribute('aria-labelledby', 'danResultTitle');
   dialog.innerHTML = `<div class="dx-result-sheet">
     <button class="dx-result-close" type="button" aria-label="关闭结算">×</button>
-    <div class="dx-result-kicker">STAGE <b></b><span></span></div>
+    <div class="dx-result-kicker"><span class="dx-result-track-word"></span><b></b><span></span></div>
     <h2 id="danResultTitle" class="dx-result-clear"></h2>
     <div class="dx-result-track"><div class="dx-result-track-icon" aria-hidden="true">DX<span>✦</span></div>
       <div class="dx-result-track-content"><div class="dx-result-track-heading"><span class="dx-result-kind"></span><span class="dx-result-problem"></span><i>DX</i></div>
@@ -465,7 +466,9 @@ function showStageSheet(pending) {
   const score = stage.comparison?.currentScore ?? null;
   const comparison = stage.comparison ?? null;
 
-  field(dialog, '.dx-result-kicker b').textContent = String(stage.index).padStart(2, '0');
+  // 用官方素材：TRACK 是唯一一张图，号码是数字精灵（数字层，不带那块实心白）
+  field(dialog, '.dx-result-track-word').replaceChildren(trackLabel());
+  field(dialog, '.dx-result-kicker b').replaceChildren(trackNumber(String(stage.index).padStart(2, '0')));
   field(dialog, '.dx-result-kicker span').textContent = `${session.tierName} · ${session.stageCount} 道中的第 ${stage.index} 道`;
   field(dialog, '#danResultTitle').textContent = stage.outcome === 'cleared' ? 'CLEAR!' : stage.outcome === 'timeout' ? 'TIME UP' : 'INTERRUPTED';
   field(dialog, '.dx-result-kind').textContent = KIND_LABEL[session.kind] ?? session.kind;

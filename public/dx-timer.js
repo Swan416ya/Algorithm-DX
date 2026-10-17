@@ -1,6 +1,6 @@
 import { cfRatingColor } from './cf-rating-colors.js';
 import { mascotImage } from './mascot.js';
-import { clearWord, trackLabel, rankWord, scoreNumber, achievementColour, NUMBER_COLOURS } from './maimai-glyphs.js';
+import { clearWord, trackLabel, trackNumber, rankWord, scoreNumber, achievementColour, NUMBER_COLOURS } from './maimai-glyphs.js';
 import { rankOf } from './dx-rank.js';
 
 export function initDxTimer({ getUser, onComplete, onResultClose }) {
@@ -35,9 +35,20 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
     // 这几处用官方精灵拼：CLEAR! / TRACK / 段位 / 大数字，形和配色都是客户端那套
     const previewParams = new URLSearchParams(location.search);
     field('.dx-result-clear').replaceChildren(clearWord());
-    field('.dx-result-track-word').replaceChildren(trackLabel());
-    field('.dx-result-kicker b').textContent = String(result.dailyTrack || 1).padStart(2, '0');
-    field('.dx-result-kicker').title = '当天第 ' + (result.dailyTrack || 1) + ' 道 AC 的题目';
+    // 轨道号只在段位/课题模式里有意义（客户端那边也是跑课程才显示 TRACK n）。
+    // 普通练习模式这里是当天第几道题的固定值，没有意义。
+    // ⚠️ 只藏内容、不删元素 —— 删掉会把 kicker 这一行压塌，上面的组件整体位移。
+    field('.dx-result-track-word').style.visibility = 'hidden';
+    field('.dx-result-kicker b').style.visibility = 'hidden';
+    // ?track=03 时强制显示这一行，方便核对 TRACK 和数字的字体（正常用户看不到）。
+    const trackPreview = previewParams.get('track');
+    if (trackPreview !== null) {
+      field('.dx-result-track-word').replaceChildren(trackLabel());
+      field('.dx-result-track-word').style.visibility = '';
+      field('.dx-result-kicker b').replaceChildren(
+        trackNumber(trackPreview.replace(/\D/g, '').padStart(2, '0').slice(-2)));
+      field('.dx-result-kicker b').style.visibility = '';
+    }
     const color = cfRatingColor(result.difficulty);
     field('.dx-result-track').dataset.ratingTone = color.tone;
     field('.dx-result-track').title = `题目难度配色参考 CF 名称颜色：${color.label}（${color.range}）`;
@@ -50,6 +61,14 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
     const achievementOverride = previewParams.get('achievement');
     const shownAchievement = achievementOverride && /^\d+(\.\d+)?$/.test(achievementOverride)
       ? Number(achievementOverride).toFixed(4) : achievementText;
+    // 达成率 < 80% 不算 clear（客户端也是这个门槛），CLEAR! 就不该出现。
+    // 这里必须放在 shownAchievement 算出来之后 —— 放在前面会踩 TDZ，
+    // 直接抛 ReferenceError 让整个 showResult() 中断（什么精灵都画不出来）。
+    // shownAchievement 为 null 表示这条没有成绩数字、按已通关处理，仍然显示。
+    const isCleared = !shownAchievement || Number(shownAchievement) >= 80;
+    // 用 visibility 而不是 hidden：达成率 <80 时只是把文字藏掉，
+    // 这一块的高度必须留着 —— 否则底下的组件会整体往上顶。
+    field('.dx-result-clear').style.visibility = isCleared ? '' : 'hidden';
     // 配色由达成率决定（<80 蓝、>=97 金、其余红）；调试时可以用 ?achvColor= 覆盖来看别的配色
     const numberColour = shownAchievement
       ? (NUMBER_COLOURS.includes(previewParams.get('achvColor')) ? previewParams.get('achvColor') : achievementColour(shownAchievement))
@@ -59,15 +78,40 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
     // 段位只跟达成率有关，所以直接由上面显示的数字推 —— 两个数据源打架就会画出「88.8888 配 S」
     const rankText = previewParams.get('rank') || (shownAchievement ? rankOf(shownAchievement) : score?.rank) || 'AC';
     field('.dx-result-rank').replaceChildren(rankWord(rankText));
-    // 结算底图跟着评级换色。客户端只有 A/B/S/SS/SSS 五档素材（没有 AAA/AA/BBB
-    // 那些细分档，也没有 C/D），所以按下表把 14 档段位归到 5 档：
-    //   SSS+ SSS -> sss | SS+ SS -> ss | S+ S -> s | AAA AA A -> a | 其余 -> b
-    // rankText 也可能是 'AC'（既无达成率也无 score.rank 时的兜底，AC = Accepted，
-    // 不是段位），按最低档处理。
-    field('.dx-result-sheet').dataset.bg = {
-      'SSS+':'sss', 'SSS':'sss', 'SS+':'ss', 'SS':'ss', 'S+':'s', 'S':'s',
-      'AAA':'a', 'AA':'a', 'A':'a',
-    }[String(rankText).trim()] || 'b';
+    // 结算底图：嵌逆向出来的客户端动态结算背景页（云/星屑/点阵/流星都在里面），
+    // 按评级切色版。它只有 A/B/S/SS/SSS 五档，细分档（AA/AAA/BB/BBB 等）按下表归并，
+    // 低于最低档、以及 AC 兜底（AC = Accepted，不是段位），都落到 B。
+    const bgRank = { 'SSS+':'SSS', 'SSS':'SSS', 'SS+':'SS', 'SS':'SS',
+                     'S+':'S', 'S':'S', 'AAA':'A', 'AA':'A', 'A':'A'
+                   }[String(rankText).trim()] || 'B';
+    const sheet = field('.dx-result-sheet');
+    sheet.dataset.bg = bgRank.toLowerCase();
+    if (!sheet.querySelector('.dx-result-bg')) {
+      const bf = document.createElement('iframe');
+      bf.className = 'dx-result-bg';
+      bf.setAttribute('scrolling', 'no');
+      bf.setAttribute('aria-hidden', 'true');
+      bf.tabIndex = -1;
+      sheet.insertBefore(bf, sheet.firstChild);
+      // 背景比结算单大一圈：四周外扩 BLEED 像素，缩放取宽/高比例的较大者，
+      // 这样无论哪一维差一点都不会在边上露出底色（用户要的"四周多几个像素"）。
+      const BLEED = 24;
+      sheet.style.setProperty('--result-bg-bleed', BLEED + 'px');
+      const fit = () => {
+        const kw = (sheet.clientWidth + BLEED * 2) / 903;
+        const kh = (sheet.clientHeight + BLEED * 2) / 906;
+        sheet.style.setProperty('--result-bg-scale',
+          Math.max(kw, kh, 0.2).toFixed(4));
+      };
+      fit();
+      if (window.ResizeObserver) new ResizeObserver(fit).observe(sheet);
+      window.addEventListener('resize', fit);
+    }
+    // ?bgStill=1 时只留静态色版兜底，不嵌 iframe（排查用）
+    if (previewParams.get('bgStill') !== '1') {
+      sheet.querySelector('.dx-result-bg').src =
+        '/mm-result-bg.html?ui=0&clear=1&t=0&rank=' + bgRank;
+    }
     field('.dx-result-kind').textContent = {first:'INDEPENDENT',repeat:'REPLAY',assisted:'ASSISTED',unknown:'PRACTICE'}[result.practiceKind];
     field('.dx-result-time strong').textContent = duration(result.seconds);
     field('.dx-result-rating strong').textContent = score ? score.rating.toFixed(1) : '—';

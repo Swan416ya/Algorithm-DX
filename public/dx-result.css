@@ -4,6 +4,14 @@
 .dx-result-sheet { isolation:isolate; position:relative; overflow:hidden; padding:18px 28px 20px; line-height:1.25; background:linear-gradient(120deg,#27d8f3 0%,#77e6fa 13%,#d99af4 27%,#f1a8ed 36%,#fff391 52%,#fff5b0 65%,#ffd476 80%,#f6ace5 100%); }
 .dx-result-sheet::before { content:''; position:absolute; z-index:-1; inset:0; opacity:.5; background-image:linear-gradient(45deg,#fff7 25%,transparent 25%,transparent 75%,#fff7 75%),linear-gradient(45deg,#fff7 25%,transparent 25%,transparent 75%,#fff7 75%); background-position:0 0,13px 13px; background-size:26px 26px; mask-image:linear-gradient(130deg,#0008,transparent 32%,#0005 80%); }
 .dx-result-sheet::after { content:''; position:absolute; z-index:-1; inset:0; background:radial-gradient(ellipse at 50% 35%,#fff8,transparent 60%),linear-gradient(160deg,transparent 42%,#fff4 42.2%,transparent 45%),linear-gradient(20deg,transparent 76%,#fff5 76.2%,transparent 77%); }
+/* 动态背景：把逆向出来的客户端结算背景页整页嵌进来（云、星屑、点阵、流星都在里面）。
+   那一页是固定 903x906，所以这里按【宽高比例里较大的那个】等比放大，再四周外扩
+   --result-bg-bleed，让背景比结算单大一圈 —— 否则某一维差一点就会在边上露出底色。
+   静态的 result-bg-*.png 只是纯色底、没有云，保留给不支持 iframe 的场景兜底。 */
+.dx-result-bg { position:absolute; left:calc(-1 * var(--result-bg-bleed));
+  top:calc(-1 * var(--result-bg-bleed)); width:903px; height:906px;
+  border:0; z-index:-2; pointer-events:none; transform-origin:0 0;
+  transform:scale(var(--result-bg-scale,0.9)); }
 /* 官方结算底图：按本次评级换色。素材取自客户端 UI_RSL_BG_{A,B,S,SS,SSS}，
    名称里的字母就是成绩等级，运行时由脚本按等级替换（客户端里搜不到
    "UI_RSL_BG_" 字面量，是拼出来的；prefab 里只有一个 BG_Pat 挂 _A 占位）。
@@ -16,8 +24,28 @@
 .dx-result-sheet[data-bg="ss"] { --result-bg:url('/assets/maimai/result-bg/result-bg-ss.png'); }
 .dx-result-sheet[data-bg="sss"] { --result-bg:url('/assets/maimai/result-bg/result-bg-sss.png'); }
 .dx-result-close { position:absolute; z-index:3; right:12px; top:12px; width:30px; height:30px; border:1px solid #ffffffa0; border-radius:50%; background:#ffffff90; color:#18327c; font-size:23px; cursor:pointer; }
-.dx-result-kicker { display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; font-weight:900; letter-spacing:1px; }
-.dx-result-kicker b { font-size:24px; font-style:italic; -webkit-text-stroke:1px #fff; filter:drop-shadow(1px 1px #243c8a); }
+.dx-result-kicker { display:flex; align-items:center; justify-content:center; gap:3px; font-size:12px; font-weight:900; letter-spacing:1px; }
+.dx-result-kicker b { display:inline-flex; align-items:flex-end; }
+/* TRACK 标题：素材 UI_RSL_Text_TRACK 是 110x36 原生。官方抓图里它占屏幕宽度的
+   10.3%（93/903），弹窗宽 820 时对应约 84px 宽 => 高 84*36/110 ≈ 27.5px。
+   之前按"抓图尺寸"直接写 30px 是按 903 宽的画面算的，放在更窄的弹窗里就偏大。 */
+.dx-result-kicker .mm-track-label { display:inline-flex; align-items:flex-end; }
+.dx-result-kicker .mm-track-label .mm-glyph { height:22px; width:auto; }
+/* 轨道号码：不是文字，是官方数字精灵。
+   prefab 里容器 NUM_TrackNumber 是 50x28 抓图 = 60x34 原生，放两位数字
+   => 每格 30x34 原生。⚠️ 同位的 Outline 是一整块实心白（靠 Subtract 混合镂空），
+   不能叠上来，否则数字被盖成全白 —— 这里用 CSS 描边近似。 */
+/* 轨道号码：两个数字当【一个整体】加描边。
+   ⚠️ 不能一个数字一个数字地加 —— 那样两位之间的缝里会多出一圈"内描边"。
+   描边色 #123F80，四向零模糊（= 硬描边，不是投影），2px。
+   字间距做负的，两位咬在一起像一个字块。 */
+.mm-track-num { display:inline-flex; align-items:flex-end;
+  filter:drop-shadow(2px 0 0 #123F80) drop-shadow(-2px 0 0 #123F80)
+         drop-shadow(0 2px 0 #123F80) drop-shadow(0 -2px 0 #123F80); }
+.mm-track-digit { position:relative; display:inline-block; width:15px; height:22.6px; }
+.mm-track-digit + .mm-track-digit { margin-left:-5px; }
+.mm-track-digit .mm-track-face { position:absolute; left:0; top:0;
+  width:15px; height:22.6px; }
 .dx-result-kicker > span:last-child { position:absolute; left:28px; top:24px; font-size:9px; letter-spacing:2px; opacity:.6; }
 /* TRACK 现在是官方那张精灵图，大小按结算单比例给 */
 .dx-result-track-word { display:inline-flex; }
@@ -226,7 +254,26 @@
 .dx-result-rank { width:100%; font-size:112px; line-height:1.08; letter-spacing:-5px; padding-right:0; }
 /* 段位现在是官方字母精灵：高度的比例对着官方抓图（段位约占画面高的 30%）。
    font-size 只用来给同行文字定尺寸，字形本身来自图。 */
+.dx-result-rank .mm-rank-word { display:inline-flex; align-items:flex-end; }
 .dx-result-rank .mm-rank-word .mm-glyph { height:176px; }
+/* 多字符段位的拼接量，来自客户端 prefab（不是估的）：
+     Null_RankObjectParent = 420x120 原生（= 抓图 350x100），运行时在里面塞字母
+     单个 S = UI_RSL_Rank_S，原生 176x212
+     三字横排 => 单字间距 420/3 = 140 原生 = 116.7 抓图 px
+     单字渲染宽 146.7px => 相邻重叠 30px
+   加号 UI_RSL_Rank_Plus 原生 88x96（= 字母高的 45%），贴右上角。 */
+.dx-result-rank .mm-rank-letter + .mm-rank-letter { margin-left:-30px; }
+/* 多字母段位：A/B 族的第 2 个字母起要缩小 —— 量官方预制整图 UI_GAM_Rank_*
+   的内容宽度得到 AAA=3x35 的 78%、BBB=3x30 的 83%，所以取 0.72。
+   SSS 是 94%（基本等大），不加这个类。缩放锚点放左下，字母就还踩在同一条基线上。 */
+.dx-result-rank .mm-rank-word .mm-rank-letter-sm { height:127px; transform-origin:0 100%; }
+/* ⚠️ 加号必须写足三层选择器。上面 .dx-result-rank .mm-rank-word .mm-glyph 是
+   3 个类名，只写 2 层会被它压掉 —— height 又变回 176px，加号就撑得跟字母一样大。
+   尺寸来自官方整图 UI_GAM_Rank_SSSp 的差分测量（SSSp 减 SSS 就是加号）：
+     单字母 30x39，加号 9x22  =>  高 0.564、宽 0.300、顶边偏移 +0.051*字母高
+   176 * 0.564 ≈ 99px，顶对齐再下移 0.051*176 ≈ 9px。 */
+.dx-result-rank .mm-rank-word .mm-rank-plus { height:99px; width:auto;
+  margin-left:-4px; align-self:flex-start; transform:translateY(-4px); }
 .dx-result-badges { margin-top:0; gap:22px; }
 .dx-result-detail { padding:12px; }
 .dx-result-time { display:flex; align-items:center; justify-content:space-between; padding:2px 0 10px; margin-bottom:10px; text-align:left; }
