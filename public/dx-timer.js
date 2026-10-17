@@ -1,4 +1,7 @@
 import { cfRatingColor } from './cf-rating-colors.js';
+import { mascotImage } from './mascot.js';
+import { clearWord, trackLabel, rankWord, scoreNumber, achievementColour, NUMBER_COLOURS } from './maimai-glyphs.js';
+import { rankOf } from './dx-rank.js';
 
 export function initDxTimer({ getUser, onComplete, onResultClose }) {
   const $ = id => document.getElementById(id);
@@ -9,11 +12,12 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
   dialog.setAttribute('aria-labelledby', 'dxResultTitle');
   dialog.innerHTML = `<div class="dx-result-sheet">
     <button class="dx-result-close" type="button" aria-label="关闭结算">×</button>
-    <div class="dx-result-kicker">TRACK <b>01</b><span>ALGORITHM DX</span></div>
-    <h2 id="dxResultTitle" class="dx-result-clear">CLEAR!</h2>
+    <figure class="dx-result-mascot" aria-hidden="true"></figure>
+    <div class="dx-result-kicker"><span class="dx-result-track-word"></span><b>01</b><span>ALGORITHM DX</span></div>
+    <h2 id="dxResultTitle" class="dx-result-clear"></h2>
     <div class="dx-result-track"><div class="dx-result-track-icon" aria-hidden="true">DX<span>✦</span></div><div class="dx-result-track-content"><div class="dx-result-track-heading"><span class="dx-result-kind"></span><span class="dx-result-problem"></span><i>DX</i></div><h3 class="dx-result-name"></h3></div><div class="dx-result-level"><small>LEVEL</small><strong></strong></div></div>
     <section class="dx-result-achievement-section" aria-label="达成率结算">
-      <div class="dx-result-achievement-top"><div class="dx-result-achievement-label">达成率 <span>›››✦</span></div><div class="dx-result-best"><span>此前最佳 <b></b></span><span class="dx-result-achievement-delta"></span></div></div>
+      <div class="dx-result-achievement-top"><div class="dx-result-achievement-label">达成率 <span>›››✦</span></div></div>
       <div class="dx-result-achievement"><span class="dx-result-achievement-value"></span></div><span class="dx-result-record" hidden>NEW RECORD</span>
     </section>
     <div class="dx-result-main"><div class="dx-result-performance"><div class="dx-result-rank" aria-label="本次评级"></div><div class="dx-result-badges"><div class="dx-result-award"><span class="dx-result-medal" aria-label="accepted"><b>AC</b><small>Accepted</small></span></div><div class="dx-result-award dx-result-award-cs"><span class="dx-result-medal dx-result-medal-cs" aria-label="clean solve"><b>CS</b><small>Clean Solve</small></span></div></div></div>
@@ -28,6 +32,10 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
   function showResult() {
     if (!result || timer?.status !== 'completed' || user !== getUser()) return;
     const score = result.score;
+    // 这几处用官方精灵拼：CLEAR! / TRACK / 段位 / 大数字，形和配色都是客户端那套
+    const previewParams = new URLSearchParams(location.search);
+    field('.dx-result-clear').replaceChildren(clearWord());
+    field('.dx-result-track-word').replaceChildren(trackLabel());
     field('.dx-result-kicker b').textContent = String(result.dailyTrack || 1).padStart(2, '0');
     field('.dx-result-kicker').title = '当天第 ' + (result.dailyTrack || 1) + ' 道 AC 的题目';
     const color = cfRatingColor(result.difficulty);
@@ -36,8 +44,29 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
     field('.dx-result-problem').textContent = 'CODEFORCES / '+timer.problem_id;
     field('.dx-result-name').textContent = result.title;
     field('.dx-result-level strong').textContent = result.difficulty ?? '待定';
-    field('.dx-result-achievement-value').textContent = score ? score.achievementShown.toFixed(4)+'%' : '已通关';
-    field('.dx-result-rank').textContent = score?.rank ?? 'AC';
+    const achievementText = score ? score.achievementShown.toFixed(4) : null;
+    // 显示哪个数字：调试用的 ?achievement= 优先，否则用本次成绩
+    const achievementOverride = previewParams.get('achievement');
+    const shownAchievement = achievementOverride && /^\d+(\.\d+)?$/.test(achievementOverride)
+      ? achievementOverride : achievementText;
+    // 配色由达成率决定（<80 蓝、>=97 金、其余红）；调试时可以用 ?achvColor= 覆盖来看别的配色
+    const numberColour = shownAchievement
+      ? (NUMBER_COLOURS.includes(previewParams.get('achvColor')) ? previewParams.get('achvColor') : achievementColour(shownAchievement))
+      : 'Gold';
+    field('.dx-result-achievement-value').replaceChildren(
+      shownAchievement ? scoreNumber(shownAchievement + '%', { colour: numberColour }) : document.createTextNode('已通关'));
+    // 段位只跟达成率有关，所以直接由上面显示的数字推 —— 两个数据源打架就会画出「88.8888 配 S」
+    const rankText = previewParams.get('rank') || (shownAchievement ? rankOf(shownAchievement) : score?.rank) || 'AC';
+    field('.dx-result-rank').replaceChildren(rankWord(rankText));
+    // 结算底图跟着评级换色。客户端只有 A/B/S/SS/SSS 五档素材（没有 AAA/AA/BBB
+    // 那些细分档，也没有 C/D），所以按下表把 14 档段位归到 5 档：
+    //   SSS+ SSS -> sss | SS+ SS -> ss | S+ S -> s | AAA AA A -> a | 其余 -> b
+    // rankText 也可能是 'AC'（既无达成率也无 score.rank 时的兜底，AC = Accepted，
+    // 不是段位），按最低档处理。
+    field('.dx-result-sheet').dataset.bg = {
+      'SSS+':'sss', 'SSS':'sss', 'SS+':'ss', 'SS':'ss', 'S+':'s', 'S':'s',
+      'AAA':'a', 'AA':'a', 'A':'a',
+    }[String(rankText).trim()] || 'b';
     field('.dx-result-kind').textContent = {first:'INDEPENDENT',repeat:'REPLAY',assisted:'ASSISTED',unknown:'PRACTICE'}[result.practiceKind];
     field('.dx-result-time strong').textContent = duration(result.seconds);
     field('.dx-result-rating strong').textContent = score ? score.rating.toFixed(1) : '—';
@@ -45,9 +74,6 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
     const signed = (number, digits) => (number>=0?'+':'−')+Math.abs(number).toFixed(digits);
     const previousAchievement = previous?.achievementShown ?? 0;
     const improvement = score && comparison ? score.achievementShown-previousAchievement : null;
-    field('.dx-result-best b').textContent = comparison ? previousAchievement.toFixed(4)+'%' : '—';
-    field('.dx-result-achievement-delta').textContent = improvement!==null ? signed(improvement,4)+'%' : '暂无对比';
-    field('.dx-result-achievement-delta').dataset.direction = improvement!==null && improvement<0 ? 'down' : 'up';
     field('.dx-result-record').hidden = !comparison || !score || result.practiceKind==='assisted' || (previous && improvement<=0);
     field('.dx-result-single-delta').textContent = score && previous ? signed(score.rating-previous.rating,1) : '';
     const totalText = comparison ? comparison.ratingAfter.toFixed(1) : '—';
@@ -80,6 +106,8 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
       tag.append(name,count);
       field('.dx-result-verdicts').append(tag);
     }
+    // 看板娘每次都重画：用户可能在设置里刚换过，图源就是那串 lolicount.top 链接
+    field('.dx-result-mascot').replaceChildren(mascotImage({ className: 'dx-result-mascot-img' }));
     if (!dialog.open) dialog.showModal();
   }
   dialog.addEventListener('close', async () => {
@@ -198,5 +226,16 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
   startPolling();
   window.addEventListener('pageshow',event=>{if(event.persisted){startPolling();void check();}});
   window.addEventListener('pagehide',()=>{clearInterval(clock);clearInterval(poll);});
-  return {refresh,running:()=>timer?.status==='running'};
+  /**
+   * 开发/设计预览：塞一份样例把结算弹窗直接弹出来，不必真的做完一道题。
+   * 只改这份闭包里的状态，showResult 照常走；页面用 ?resultPreview=1 触发。
+   */
+  function previewResult(sample) {
+    timer = { problem_id: sample.problemId, status: 'completed' };
+    result = sample.result;
+    user = getUser();
+    showResult();
+  }
+
+  return {refresh,running:()=>timer?.status==='running',previewResult};
 }

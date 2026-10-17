@@ -4,10 +4,24 @@
 .dx-result-sheet { isolation:isolate; position:relative; overflow:hidden; padding:18px 28px 20px; line-height:1.25; background:linear-gradient(120deg,#27d8f3 0%,#77e6fa 13%,#d99af4 27%,#f1a8ed 36%,#fff391 52%,#fff5b0 65%,#ffd476 80%,#f6ace5 100%); }
 .dx-result-sheet::before { content:''; position:absolute; z-index:-1; inset:0; opacity:.5; background-image:linear-gradient(45deg,#fff7 25%,transparent 25%,transparent 75%,#fff7 75%),linear-gradient(45deg,#fff7 25%,transparent 25%,transparent 75%,#fff7 75%); background-position:0 0,13px 13px; background-size:26px 26px; mask-image:linear-gradient(130deg,#0008,transparent 32%,#0005 80%); }
 .dx-result-sheet::after { content:''; position:absolute; z-index:-1; inset:0; background:radial-gradient(ellipse at 50% 35%,#fff8,transparent 60%),linear-gradient(160deg,transparent 42%,#fff4 42.2%,transparent 45%),linear-gradient(20deg,transparent 76%,#fff5 76.2%,transparent 77%); }
+/* 官方结算底图：按本次评级换色。素材取自客户端 UI_RSL_BG_{A,B,S,SS,SSS}，
+   名称里的字母就是成绩等级，运行时由脚本按等级替换（客户端里搜不到
+   "UI_RSL_BG_" 字面量，是拼出来的；prefab 里只有一个 BG_Pat 挂 _A 占位）。
+   素材只有 A/B/S/SS/SSS 五档，没有 _C/_D，所以 C 以下都落到 b（最蓝的那档）。
+   javascript 端在 .dx-result-sheet 上挂 data-bg。 */
+.dx-result-sheet[data-bg] { background-image:var(--result-bg); background-size:cover; background-position:center; }
+.dx-result-sheet[data-bg="a"] { --result-bg:url('/assets/maimai/result-bg/result-bg-a.png'); }
+.dx-result-sheet[data-bg="b"] { --result-bg:url('/assets/maimai/result-bg/result-bg-b.png'); }
+.dx-result-sheet[data-bg="s"] { --result-bg:url('/assets/maimai/result-bg/result-bg-s.png'); }
+.dx-result-sheet[data-bg="ss"] { --result-bg:url('/assets/maimai/result-bg/result-bg-ss.png'); }
+.dx-result-sheet[data-bg="sss"] { --result-bg:url('/assets/maimai/result-bg/result-bg-sss.png'); }
 .dx-result-close { position:absolute; z-index:3; right:12px; top:12px; width:30px; height:30px; border:1px solid #ffffffa0; border-radius:50%; background:#ffffff90; color:#18327c; font-size:23px; cursor:pointer; }
 .dx-result-kicker { display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; font-weight:900; letter-spacing:1px; }
 .dx-result-kicker b { font-size:24px; font-style:italic; -webkit-text-stroke:1px #fff; filter:drop-shadow(1px 1px #243c8a); }
-.dx-result-kicker > span { position:absolute; left:28px; top:24px; font-size:9px; letter-spacing:2px; opacity:.6; }
+.dx-result-kicker > span:last-child { position:absolute; left:28px; top:24px; font-size:9px; letter-spacing:2px; opacity:.6; }
+/* TRACK 现在是官方那张精灵图，大小按结算单比例给 */
+.dx-result-track-word { display:inline-flex; }
+.dx-result-track-word .mm-glyph { height:24px; }
 .dx-result-clear { margin:0; text-align:center; font-family:Georgia,'Times New Roman',serif; font-weight:900; font-size:66px; line-height:.98; letter-spacing:7px; color:#fff; background:linear-gradient(110deg,#2ce2ff 8%,#effcff 18%,#945bff 32%,#fff0fa 44%,#ff79bf 55%,#fff4a2 66%,#51dafa 78%,#fff 88%); background-clip:text; -webkit-text-fill-color:transparent; -webkit-text-stroke:1px #fff; filter:drop-shadow(1px 0 #23368b) drop-shadow(-1px 0 #23368b) drop-shadow(0 2px #23368b) drop-shadow(0 2px #fff) drop-shadow(2px 2px #5caef3); }
 .dx-result-subtitle { margin:2px 0 13px; text-align:center; font-weight:900; font-size:15px; color:#ffef8e; -webkit-text-stroke:.6px #46318a; text-shadow:0 2px #fff; }
 .dx-result-track { position:relative; display:grid; grid-template-columns:62px 1fr 74px; gap:10px; align-items:center; padding:7px 8px; border:3px solid #6224b1; border-radius:12px 35px 35px 12px; background:linear-gradient(100deg,#bb51f1,#a846e8 45%,#8339dc); color:#fff; box-shadow:inset 0 1px 0 #edb5ff,0 3px 0 #f2c4fb; }
@@ -26,12 +40,17 @@
 .dx-result-achievement-top { display:flex; gap:12px; align-items:center; }
 .dx-result-achievement-label { margin-left:-28px; padding:5px 16px 5px 28px; background:linear-gradient(100deg,#082c92,#057cf4); border-radius:0 0 16px 0; color:#fff; font-size:14px; font-weight:900; white-space:nowrap; }
 .dx-result-achievement-label > span { margin-left:12px; color:#80ebff; letter-spacing:2px; }
-.dx-result-best { display:flex; align-items:center; border:2px solid #d9e8f2; border-radius:20px; background:#073579; box-shadow:0 2px 0 #4c6395; font-size:10px; font-weight:700; color:#d0e9ff; white-space:nowrap; }
-.dx-result-best > span:first-child { padding:4px 10px; }
-.dx-result-best b { display:block; color:#fff; font-size:13px; }
-.dx-result-achievement-delta { padding:8px 14px; align-self:stretch; display:flex; align-items:center; color:#665505; font-size:17px; font-weight:900; background:linear-gradient(#fff69d,#f8d549); border-radius:0 20px 20px 0; box-shadow:inset 0 1px #fff; }
-.dx-result-achievement-delta[data-direction=down] { color:#46578a; background:linear-gradient(#ebf2ff,#cad9f4); }
+/* 看板娘：贴在结算单右上角，压在面板之下（后面那些兄弟节点有底色，会自然盖住它），
+   这样它是从内容后面探出来的，不会挡住 TRACK 行，也不挡点击（设置入口在页头） */
+.dx-result-mascot { position:absolute; right:-14px; top:2px; margin:0; width:196px; height:300px; display:grid; align-items:end; justify-items:center; pointer-events:none; }
+.dx-result-mascot-img { max-width:196px; max-height:300px; object-fit:contain; filter:drop-shadow(0 6px 10px #243c8a55); }
+/* 窄屏放不下就收起来：它会压到 TRACK/达成率那几行上 */
+@media (max-width:640px) { .dx-result-mascot { display:none; } }
 .dx-result-achievement { position:relative; margin:8px -28px 0; padding:3px 28px; font-size:clamp(44px,7.6vw,76px); font-weight:1000; letter-spacing:-3px; font-variant-numeric:tabular-nums; line-height:1.05; color:#ffe85a; -webkit-text-stroke:1.4px #ba3915; background:linear-gradient(100deg,#ffffffd9,#ffffff70 80%,#fff2); text-shadow:2px 2px #fff,3px 4px #e68c31; }
+/* 达成率数字是官方金色精灵。--n 是整数部分的格子高：官方抓图里是 98px（900px 画面），
+   弹窗比它略窄，取 90px 视觉上等大；小数点后和 '%' 的大小由 --n 按官方比例推。 */
+.dx-result-achievement-value { --n: 90px; }
+.dx-result-achievement-value .mm-number { line-height:0; }
 .dx-result-record { position:absolute; right:30px; bottom:23px; transform:rotate(-8deg); padding:4px 7px; color:#e0373d; border:2px solid #e0373d; border-radius:4px; font-size:11px; letter-spacing:1px; font-weight:900; background:#fff3cda8; }
 .dx-result-record[hidden] { display:none; }
 .dx-result-main { display:grid; grid-template-columns:1fr 250px; gap:24px; align-items:center; padding:20px 0 14px; }
@@ -117,7 +136,6 @@
 .dx-result-clear { margin-bottom:15px; }
 .dx-result-achievement { text-shadow:none; -webkit-text-stroke:0; }
 .dx-result-achievement-value { display:inline-block; background:linear-gradient(180deg,#fffde8 0%,#fff49b 18%,#fffad3 28%,#ffdd4d 40%,#ffb920 58%,#fff091 78%,#ffd543 100%); background-clip:text; -webkit-text-fill-color:transparent; -webkit-text-stroke:1.4px #bd3819; filter:drop-shadow(1px 0 #fffbe0) drop-shadow(-1px 0 #fffbe0) drop-shadow(0 2px #fffbe0) drop-shadow(1px 2px #d67b21); }
-.dx-result-achievement-delta { background:linear-gradient(180deg,#ffffd8 0%,#fff49c 36%,#fffad1 44%,#f5d84e 48%,#ffe573 100%); box-shadow:inset 0 1px 0 #fff, inset 0 -2px 0 #d7b42e55; text-shadow:0 1px #fff9c7; }
 .dx-result-record { transform:none; border:2px solid #fff4bd; border-radius:7px; padding:6px 10px; color:#244a98; background:linear-gradient(180deg,#fffbd9 0%,#fff198 36%,#fffbe1 44%,#f6cb42 48%,#ffe67a 100%); box-shadow:0 0 0 1px #cf9c2b,0 2px 0 #c7953580,0 0 12px #fff8ad80; text-shadow:0 1px #fff; font-style:italic; }
 .dx-result-medal { border:5px solid #4fb841; outline:2px solid #216e3b; background:radial-gradient(ellipse at 35% 15%,#b7f37b 0%,#52c54d 28%,#179548 62%,#06763e 100%); box-shadow:inset 0 0 0 2px #e6ffc1,inset 0 -6px 10px #045f3d55,0 2px 0 #fff,0 5px 8px #38597050; text-shadow:0 1px #074a2c,0 2px #0b663c; }
 .dx-result-medal::before { inset:-6px; border:0; outline:1px solid #236c3e; background:repeating-conic-gradient(from -8deg,#f1ffc3 0deg 13deg,#7dda62 13deg 25deg,#218946 25deg 30deg); mask:radial-gradient(circle,transparent 62%,#000 64%); }
@@ -206,6 +224,9 @@
 .dx-result-main { grid-template-columns:minmax(0,1fr) 260px; gap:28px; padding:20px 0 22px; align-items:center; }
 .dx-result-performance { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; }
 .dx-result-rank { width:100%; font-size:112px; line-height:1.08; letter-spacing:-5px; padding-right:0; }
+/* 段位现在是官方字母精灵：高度的比例对着官方抓图（段位约占画面高的 30%）。
+   font-size 只用来给同行文字定尺寸，字形本身来自图。 */
+.dx-result-rank .mm-rank-word .mm-glyph { height:176px; }
 .dx-result-badges { margin-top:0; gap:22px; }
 .dx-result-detail { padding:12px; }
 .dx-result-time { display:flex; align-items:center; justify-content:space-between; padding:2px 0 10px; margin-bottom:10px; text-align:left; }
