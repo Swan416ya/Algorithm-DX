@@ -46,9 +46,10 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
     field('.dx-result-level strong').textContent = result.difficulty ?? '待定';
     const achievementText = score ? score.achievementShown.toFixed(4) : null;
     // 显示哪个数字：调试用的 ?achievement= 优先，否则用本次成绩
+    // 两条路都补齐到四位小数 —— 结算单上的达成率永远是 4 位（100.0000%）
     const achievementOverride = previewParams.get('achievement');
     const shownAchievement = achievementOverride && /^\d+(\.\d+)?$/.test(achievementOverride)
-      ? achievementOverride : achievementText;
+      ? Number(achievementOverride).toFixed(4) : achievementText;
     // 配色由达成率决定（<80 蓝、>=97 金、其余红）；调试时可以用 ?achvColor= 覆盖来看别的配色
     const numberColour = shownAchievement
       ? (NUMBER_COLOURS.includes(previewParams.get('achvColor')) ? previewParams.get('achvColor') : achievementColour(shownAchievement))
