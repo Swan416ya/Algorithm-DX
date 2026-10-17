@@ -430,28 +430,45 @@
       这和加号那次是同一类 bug：权重不够。 */
 .dx-result-badges { display:block; }
 .mm-medals { position:relative; display:block; width:248px; height:118px;
-  transform:translateY(-30px); }
+  /* 左移 27 / 上移 28：Codex 量的偏移是 3 倍放大图坐标(80/83)，折算成 CSS px。
+     -30px 是原先的垂直值，合计上移 58。 */
+  transform:translate(0px, -58px); }
 .mm-medals .mm-medal-base { position:absolute; left:0; bottom:0;
   width:248px; height:auto; }
-.mm-medals .mm-medal { position:absolute; bottom:23px; width:75px; height:75px;
+.mm-medals .mm-medal { position:absolute; bottom:27px; width:75px; height:75px;
   display:block; object-fit:contain; }
 /* Clean Solve 没达成：变灰 + 压暗（Accepted 只要有 AC 就一定有） */
 .mm-medals .mm-medal[data-earned="false"] { filter:grayscale(1) brightness(.72);
   opacity:.55; }
-.mm-medals .mm-medal--ap { left:45px; }
-.mm-medals .mm-medal--fsd { left:128px; }
+.mm-medals .mm-medal--ap { left:33px; }   /* 中心 70.5 vs 凹槽 69.6 */
+.mm-medals .mm-medal--fsd { left:133px; } /* 中心 170.5 vs 凹槽 170.8 */
 .mm-medals .mm-medal-skin { position:absolute; left:0; top:0;
   width:75px; height:75px; }
 .mm-medals .mm-medal-text { position:absolute; left:0; top:6px;
   width:75px; height:auto; }
 
 /* 段位整体往上一点（用户要求） */
-.dx-result-rank { transform:translateY(-8px); }
+.dx-result-rank { transform:translateY(-16px); }
 
 /* 达成率：小数位之间收紧、整组底部对齐 */
 .dx-result-achievement-value .mm-number-frac + .mm-number-frac { margin-left:-5px; }
 .dx-result-achievement-value .mm-number-int + .mm-number-int { margin-left:-6px; }
 
 /* 底下的 DX RATING 框整体往上提一点（用户要求） */
-.dx-result-bottom .dx-result-total { transform:translateY(-14px); }
+/* DX RATING：挪到徽章槽的下一行，并和徽章槽水平对齐。
+   徽章组中心相对弹窗内容区偏左 27px，这里同步左移并对齐到同一垂直中线。 */
+/* DX RATING：只上移，不再左移。
+   读图量过：数字/段位/徽章的中心都在 445~452，CLEAR! 在 592（=弹窗中心），
+   而这个框原来在 422 —— 是我多加了 -27px 造成的，去掉。 */
+.dx-result-bottom .dx-result-total { transform:translateY(-60px); }
 .dx-result-total-delta { top:calc(100% + 3px); }
+
+/* 达成率数字：小数点要和整数/小数底部对齐 —— 那个 glyph 图里下方有透明留白，
+   直接 flex-end 仍会显得偏高，所以单独往下压一点。 */
+/* 小数点下压 —— 实测：小数图集格子高 98，数字字形底在 91~93（底留白 4~6），
+   而小数点字形底只到 81（底留白 16）=> 比数字高 12px。
+   显示尺寸 72px / 格子 98 = 0.735 => 12 x 0.735 = 8.8px，取 -9。*/
+.dx-result-achievement-value .mm-number-frac { margin-bottom:-9px; }
+/* 字间距再收紧 */
+.dx-result-achievement-value .mm-number-int + .mm-number-int  { margin-left:-12px; }
+.dx-result-achievement-value .mm-number-frac + .mm-number-frac { margin-left:-10px; }
