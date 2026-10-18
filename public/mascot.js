@@ -15,13 +15,30 @@ const MASCOT_KEY = 'mm-mascot';
 
 /** 默认看板娘：一串普通的 lolicount.top 图片链接，用户随时可以换成自己的 */
 export const MASCOT_DEFAULT =
-  'https://lolicount.top/@111?theme=sanoba-nene&fsize=16&scale=1&unshowf=true&text=%7Bn%7D';
+  'https://lolicount.top/@ttttt?theme=manosaba-ema&fsize=16&scale=1&unshowf=true&text=%7Bn%7D';
 
 /** 站上「获取链接」的入口，设置页引导用户去这里挑 */
 const MASCOT_SITE = 'https://lolicount.top';
 
-/** 远端图挂了就退回这张本地占位图（仓库自带，不联外网） */
-export const MASCOT_FALLBACK = '/assets/mm-parts/chara-placeholder.png';
+/**
+ * 远端图挂了就退回这张本地立绘（仓库自带，不联外网）。
+ *
+ * 不是随便找的占位图：这是客户端里结算画面那位导航角色的立绘
+ * `UI_Navichara_01_P1_02`（524×812 RGBA，全身站姿、底色全透明）——
+ * 结算画面的 `Null_NavicharaRoot` 挂的就是 `Navi_Default` 这一族。
+ * 同族的 02/03/04/05 是同一姿势的几帧表情差分，02 是两眼睁开、
+ * 站得最"正"的那一帧。
+ *
+ * 之前挑过 `UI_ADV_Img_chara155_01_01`（616×1160，撑伞的紫发角色），
+ * 那张本身没问题，但她是淡紫配白，放在成绩板那块近白玻璃后面整片糊掉，
+ * 立绘就"读"不出来了；这一位是红裙 + 黑色条纹袜，浅底板上反差够，
+ * 隔着板子还看得见人。（同族的 `UI_ADV_Img_chara155_01_shadow`
+ * 证明 chara155 那族也是"站到背景上"的图，只是不适合这个底板。）
+ *
+ * 出图路子见 `scripts/extract-result-assets.py`（UnityPy 读 resources.assets
+ * 的 Texture2D），这里只放结果。
+ */
+export const MASCOT_FALLBACK = '/assets/mm-parts/navichara-01-p1-02.png';
 
 export function getMascotUrl() {
   try {
