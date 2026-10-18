@@ -202,13 +202,15 @@ export function scoreNumber(text, { colour = 'Gold' } = {}) {
     const atlas = cls === 'mm-number-int' ? '1110000' : '0001111';
     return glyph(`UI_NUM_Score_${atlas}_${colour}_${cell}.png`, { className: 'mm-glyph ' + cls });
   };
-
   for (const ch of whole) {
     const img = digit(ch, 'mm-number-int');
     if (img) row.append(img);
   }
   if (fraction) {
-    const point = digit('.', 'mm-number-frac');
+    // 小数点单独挂一个 mm-number-dot：它在格子里的留白和数字完全不是一回事
+    // （左16.9 / 右15.4 / 底12.3 px，数字是 2.3 / 2.3 / 3.8），
+    // 排版要单独压、两侧单独收，见 dx-result.css 里那段「达成率大数字」。
+    const point = digit('.', 'mm-number-frac mm-number-dot');
     if (point) row.append(point);
     for (const ch of fraction) {
       const img = digit(ch, 'mm-number-frac');

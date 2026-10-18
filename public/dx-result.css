@@ -118,10 +118,24 @@
       alpha 每行都是连通的一段，包围盒 x2..742 / y2..139，框外全透明），暗色来自 CSS 盒子。
      也试过用底板当 mask 把这条投影改成随圆角走的"底座"——暗杠确实贴上了卡片，但卡片底下
       还是留着一条 4px 暗带，用户投诉的就是这条带，等于没解决，所以没采用。
-   ✅ 这张卡只留环境投影。卡片的下边缘不会因此缺一条边：底板自己四周有 2px 描边。
+   ✅ 环境投影也一并撤掉 —— **外投影按盒子投，盒子是方的，卡片是圆的**。
+      实测（1200 视口，纯色底 #ffcc66 上逐像素扫，卡盒 x199.5..963.5 / y95.1..213.1）：
+        `0 8px 16px #00000033` 在 y215 / y222 两行铺出 x≈205..975 的一片暗色，**两端是方角**；
+        而卡片自己的剪影在那两行只到 x≈203..938（左下圆角 + 右端圆盘收进去），
+        多出来的那截方角暗块就是「抠图没抠干净」的观感来源。
+        外投影被规范裁在 border-box 之外，所以它在卡片顶部的透明带里不显形、
+        只在盒子外圈显形 —— 最扎眼的就是盒子底边那条比卡片还宽的方角暗杠。
+      ✅ 改成把投影挂在**底板那一层**（drop-shadow 跟 alpha 走 = 跟卡片剪影走）：
+        `.dx-result-track-plate` 是这张卡里**唯一**带底板 alpha 的层。见下面那条 filter。
    ⚠️ 只给精灵卡（data-rating-tone 由 dx-timer.js:76 挂）：dan.js:436 的单题结算也写
       .dx-result-track，但它没有底板，那条硬投影是它唯一的底边，不能跟着一起撤。 */
-.dx-result-track[data-rating-tone] { box-shadow:0 8px 16px #00000033; }
+.dx-result-track[data-rating-tone] { box-shadow:none; }
+/* 底板剪影投影。⚠️ 只能挂在这一层：
+      · 挂 .dx-result-track-art 不行 —— 那层要套 --mm-plate-filter，父层再加 filter
+        会把两条滤镜串成一条链，且 cover 补丁也会被一起投影；
+      · 挂 .dx-result-track 就是回到方盒投影（上面那段否掉的东西）。 */
+.dx-result-track[data-rating-tone] .dx-result-track-plate {
+  filter:drop-shadow(0 8px 14px #00000040); }
 /* 整块卡上提，把它拉到 CLEAR! 词标跟前。
    底板精灵顶上有 37/142 个卡高是**全透明**的（只有右端圆盘冒头，见 UI_RSL_MBase_* 的
    alpha 轮廓），所以光看盒子间距看不出这段空档有多虚 ——
@@ -267,7 +281,32 @@
    抬 0.095×格高（默认 42px → 4px，就是原来那条 margin-bottom 的量），
    LV 的墨迹底边正好落在数字白芯的基线上。 */
 .dx-result-track .mm-level .mm-level-lv { position:absolute; left:calc(90.279% - var(--mm-digit-h) * 1.315 - 2px); bottom:calc(49% + var(--mm-level-rise) - var(--mm-digit-h) * .405); transform:translateX(-100%); height:var(--mm-lv-h); width:auto; margin:0; }
-.dx-result-achievement-section { position:relative; margin:18px -28px 0; padding:0 28px 2px; }
+/* 达成率那一段也按「左列 + 侧栏」分栏（列定义与 .dx-result-main 共用同一组变量），
+   数字放进第一列居中 —— 这样它的水平中轴和段位/徽章/DX 评分框天然是同一条，
+   不用去凑 -6px 那种魔法数（原来那条 translateX(-6px) 已删）。 */
+.dx-result-achievement-section { position:relative; display:grid;
+  grid-template-columns:minmax(0,1fr) var(--mm-side-w);
+  /* ⚠️ 只能用 column-gap：写成 gap 会连 row-gap 一起给成 28px，
+     而这里的两行（ACHIEVEMENT 标题行 / 数字行）是**上下相邻**的，
+     凭空多出 28px 行距 —— 那正是"标题和数字中间太空"的来源。 */
+  column-gap:var(--mm-col-gap); row-gap:0;
+  margin:18px -28px 0; padding:0 28px 2px; }
+.dx-result-achievement-section > * { grid-column:1; }
+/* 达成率底下那条**白色半透明横带**（用户口径「数字下面有一条白色半透明背景条」）。
+   素材：`UI_RSL_Base_Achievement.png`（408x122）—— 不是纯色带，是**一条带框的面板**：
+   左端三枚淡紫箭头、右端一枚、上下各一道淡紫边线，中间才是那块半透明白（中心 RGBA
+   255,255,255,204）。所以这里用 border-image 九宫格铺：两端箭头/边线按原比例，
+   中间拉伸 —— 直接 `background-size:100% 100%` 会把箭头横向拉成 2 倍、纵向压扁。
+   素材结构（逐行/逐列量）：内容行 y12..113（上边线 12 / 下边线 9），
+   左端箭头组宽 ≈115、右端箭头 ≈38。我们要的带高 66 → 统一 ×0.65 折到目标尺寸。
+   位置：官方（903 抓图）条 y306..371、数字墨迹顶 y277 →
+   **条顶 = 数字墨迹顶 - 0.44×条高**（≈ -29px），也就是数字下缘那条带正好咬着数字。
+   我们这边数字行上移后（见下面那条 margin-top:0）条顶落在 section 顶 +70。 */
+.dx-result-achievement-section::before { content:''; position:absolute; z-index:-1;
+  left:0; right:0; top:82px; height:66px; pointer-events:none;
+  border:0 solid transparent;
+  border-image:url('/assets/mm-result/UI_RSL_Base_Achievement.png') 12 38 9 115 fill /
+    7.8px 24.7px 5.9px 74.8px stretch; }
 .dx-result-achievement-top { display:flex; gap:12px; align-items:center; }
 /* 这一条原来自己画了蓝渐变底 + 右下圆角（linear-gradient(100deg,#082c92,#057cf4) / border-radius:0 0 16px 0）
    —— 那是改造前文字标签的样式残留，会在 ACHIEVEMENT 上方留下一根空蓝条。
@@ -279,20 +318,94 @@
    ⚠️ .dx-result-sheet 有 isolation:isolate，所以这里的 z-index:-1 只会沉到
    「结算单自己的背景之上、单子里所有内容之下」—— 立绘不会盖住任何文字或按钮，
    成绩板只要半透明就能自然浮在它上面（见文件末尾「右半区」那一节）。
-   --mascot-h 372：站姿高度，正好让立绘头顶停在达成率数字（底边 405）之下，
-   不跟那一行抢画面；远端链接给的图比例再怪也是 contain 收进这个框里。 */
-.dx-result-mascot { position:absolute; z-index:-1; right:-24px; bottom:-12px; margin:0;
-  width:min(430px,54vw); height:372px;
-  display:flex; align-items:flex-end; justify-content:flex-end;
+   ✅ 竖直：**头锚在卡片下沿，身高一路探到「下一步」按钮那条带子**（用户口径：
+      "高度一直往下探到下一步那个按钮都没太大关系"）。
+      立绘的大小**完全由框高决定**：两张图都是竖长条（默认远端 lolicount SVG 150x420，
+      本地兜底立绘 524x812），contain 一定先顶满高度，框宽再大也不会让画变大。
+      所以改大小 = 只改 --mm-mascot-h。
+      ⚠️ 锚点用 top 而不是 bottom：改前用 bottom 时，下界被页脚顶（763）卡住，
+         只能到 530。现在挂 top，量的是「卡片下沿 → 侧栏顶」这段距离 ——
+         跨视口实测（820/1000/1200/1440 宽 × 800/741/900 高，六档）**恒为 181.7px**
+         （这个数只由「卡片以下、主行以上」的内容决定：最早 178，达成率那一段收掉
+         28px 行距后变 169.7，用户要求把标题/数字再拉开 12px 后又回到 181.7 ——
+         **动上面任何一块都要回来重对一次**），而「侧栏底 → 单子底」恒为 129px。
+         所以 top = -(181.7) + 卡片下沿留白 6px ≈ -176px；
+         身高上限 = 181.7 + 侧栏高 334 + 129 = 644.7px，现取 632 留 12px 余量。
+  ✅ 取 --mm-mascot-h:632px（= 641 减 9px 余量，再用 top:-172px 让头顶离卡片留 6px）：
+       · 框 y 235..867，单子裁切边在 870 → 框底留 3px（框底是画布的透明边，切到也无所谓）
+       · contain 后画出来 225.7x632，其中**人**（SVG 画布里角色墨迹只占画布宽 109/150）
+         是 164 x 603，落在 x740.3..904.2 / y235.3..838.6，中心 822.2 + 下面那点偏心补偿 = 824.5
+       · 改前（530 / bottom 锚）：人是 137.6 x 504.7 —— 人 +19% 线性尺寸、+46% 面积
+       · 成绩板上沿 472.3：板以上露出 237px，**板以下还露出 123.6px 的腿和靴子**
+         （530 那版只有 21px，等于刚过板底就断腿）→ 人可见 52% → **60%**
+       · 脚底 838.6 落在「下一步」按钮（782..845）后面 —— 人被按钮挡住是允许的：
+         立绘 z-index:-1，按钮照常可点；官方也是立绘沉在最底下
+   ✅ 横向：**人和成绩板水平居中对齐**（用户口径）。不是调 right，而是
+      把框改成「以侧栏水平中点为心」——`left:50% + translateX(-50%)`，
+      侧栏中点就是成绩板中点（板整栏宽：1200 视口 x674.5..974.5 → 中点 824.5），
+      所以人和板天然共中线，换任何比例的素材都成立
+      （原来 right:-24px 把人推到 x893.6，偏右 69px）。
+   ⚠️ --mm-mascot-shift：默认那张 SVG **自己的偏心**，不是版式需要。
+      它的画布里角色墨迹在 x12.4..121.4 / 画布宽 150 → 墨迹中心 66.9，
+      比画布中心 75 靠左 8.1（=画布宽 5.4%），而墨迹的**质量中心**也是 66.8
+      （逐段算过：头 65.4 / 上身 65.2 / 下摆 65.0），所以按 bbox 居中就是按视觉居中。
+      图宽 = 0.357 × 框高（150/420），故补偿 = 0.054 × 0.357 × H = 0.01929 × H
+      —— 写成随 --mm-mascot-h 缩放的 calc，改身高不会把中线带偏。
+      ⚠️ 换素材要重测：本地兜底 navichara-01-p1-02.png 的墨迹占满整张画布
+      （bbox x0..524），中心本来就在画布中线上，挂着这一下会反过来偏右 12px
+      —— 164px 宽的人身上 12px 是 7%，介意就把 --mm-mascot-shift 设成 0。
+   ⚠️ 框宽 340（原 430）：框只是 contain 的容器，默认素材是高度受限，340 一样画出
+      225.7x632，看不出区别。收窄是为了**对称外扩不越界**：框以侧栏中点为心，
+      侧栏中点到单子裁切边只有 178px（侧栏半宽 150 + 内边距 28），430 的框会伸出去；
+      340 → 两侧各外扩 170，安全。宽比例素材（比如去掉 theme 后 400x420）在 340 里
+      是 340x357，仍然比现在宽 2 倍。
+   ⚠️ ACHIEVEMENT 那一行（y286.3 起、盒横跨整张单子）就在头顶这个高度上：
+      数字墨迹到 x≈701 为止；人左缘 740.3，横向差 39px，盖不到任何一个字。
+   ⚠️ 不再写 max-height:740px 那一档的矮窗覆盖：那时以为矮窗几何会变，实测
+      （1200x741 vs 1200x900）卡片下沿→侧栏顶、侧栏底→单子底、侧栏高**三个数完全一样**，
+      矮窗只是让弹窗滚动，单子内部几何不变，再压一遍只会让 740 以下的窗口里人变小。 */
+.dx-result-mascot { --mm-mascot-h:632px;
+  --mm-mascot-shift:calc(var(--mm-mascot-h) * .01929);
+  position:absolute; z-index:-1; left:calc(50% + var(--mm-mascot-shift)); top:-176px; margin:0;
+  width:min(340px,46vw); height:var(--mm-mascot-h);
+  transform:translateX(-50%);
+  display:flex; align-items:flex-end; justify-content:center;
   pointer-events:none; }
+/* 看板娘图：contain 铺进框，**水平居中、顶部对齐**。
+   ⚠️ object-position 的纵轴必须是 top、不能是 bottom：框高 632 是给默认那张竖长条 SVG
+      量身定的（它高度受限、正好填满框），但换别的素材就未必 ——
+      · 本地兜底立绘 524x812 是**宽度受限**，画出来 340x527，比框矮 105px；
+      · 站上别的 theme（比如去掉 theme 后的 400x420 画布）更矮。
+      纵轴写 bottom 的话这些"矮素材"会整体沉到框底 → 头埋进成绩板后面（实测头在 y506，
+      板子上沿才 468）；写 top 则是**头顶永远贴着卡片下沿**，矮的素材脚下留一截空 ——
+      这一条比"脚踩按钮"重要，因为头是识别"这是个人"的部位。
+      （默认那张 SVG 高度正好填满，两种写法在它身上完全等价，所以这个改动不影响已定稿的观感。）*/
 .dx-result-mascot-img { width:100%; height:100%; object-fit:contain;
-  object-position:right bottom; filter:drop-shadow(0 8px 14px #16307a4d); }
+  object-position:center top; filter:drop-shadow(0 8px 14px #16307a4d);
+  /* 去掉看板娘图自带的那行计数数字（用户口径「右侧人物下面的计数器数字可以删掉」）。
+     默认那张 lolicount SVG 的结构是：外层画布 150x420，角色的 <svg> 只占 y0..400，
+     计数是画在外层底部的 <text x=75 y=416 font-size=16>74</text> —— 正好在最后
+     20/420 = 4.762% 的横带里。图是高度受限（object-fit:contain + 高比例的竖长条），
+     渲染出来贴着框底，所以按**框高**切掉底下 4.762% 就是切掉那行字、一个像素不碰脚：
+     角色墨迹到 y=400（=切点），计数在 400..420。
+     ⚠️ 宽比例素材（本地兜底 524x812）是宽度受限，图内容在框里上下留白，
+        这一刀切在空留白上，不会有副作用。 */
+  clip-path:inset(0 0 4.762% 0); }
 /* 窄屏放不下就收起来：它会压到 TRACK/达成率那几行上 */
 @media (max-width:640px) { .dx-result-mascot { display:none; } }
 /* 这一条原来自己画了淡白横带（linear-gradient(100deg,#ffffffd9,...)）
    外加文字时代的 text-shadow / text-stroke —— 现在数字是官方精灵，
    prefab 里数字直接画在画面上、底下没有任何垫层，所以全部去掉，只留排版。 */
-.dx-result-achievement { position:relative; margin:8px -28px 0; padding:3px 28px;
+/* ⚠️ martin-top 12px：这一格被用户来回调过两轮，记一下取值依据 ——
+   · 原状 gap 43px（标题盒底 → 数字行顶，其中 28px 是分栏网格误加的 row-gap）→ 用户「太空中」
+   · 全收平（margin 0 + row-gap 0）→ 标签墨迹底到数字墨迹顶只剩 ≈7px，贴着 → 用户「又太近了」
+   · 现在 margin-top:12px → 墨迹之间 ≈19px，标题和数字分得开、又还在同一组里。
+   ⚠️ 官方抓图量到的其实是 7px（标签板底 y265 / 数字墨迹顶 y272），官方是"贴着"的；
+      这里是**按用户口径偏离官方**，不要再拿官方数去"纠正"回来。
+   ⚠️ 改这个值有三处联动，必须一起动（都在同一份注释里有记录）：
+      1) .dx-result-achievement-section::before 的 top（白带跟着数字走，+12 → 82px）
+      2) .dx-result-mascot 的 top（这一段变高多少，卡片下沿→侧栏顶就变多少，-164 → -176px） */
+.dx-result-achievement { position:relative; margin:12px -28px 0; padding:3px 28px;
   line-height:1.05; }
 /* 达成率数字是官方金色精灵。--n 是整数部分的格子高：官方抓图里是 98px（900px 画面），
    弹窗比它略窄，取 90px 视觉上等大；小数点后和 '%' 的大小由 --n 按官方比例推。 */
@@ -302,9 +415,11 @@
    1) 整体左移 30px —— prefab 里整数 -215 / 小数 +4 / 百分号 +273，中心在 +29 偏右
    2) 百分号底边和小数下端对齐（align-self:flex-end，不写死 translateY）
    数字底下那层白色半透明底板删掉了 —— prefab 里数字直接画在画面上，没有垫层。*/
-.dx-result-achievement-value .mm-number { align-items:flex-end;
-  transform:translateX(-6px); }
+.dx-result-achievement-value .mm-number { align-items:flex-end; }
 .dx-result-achievement-value .mm-number-percent { align-self:flex-end; }
+/* 数字在左列里居中：整串的中轴 = 段位/徽章/DX 评分框的中轴（见上面的列宽变量一节）。
+   ⚠️ 原来这里是 translateX(-6px)（配合左对齐用的偏移），居中了就不需要了。 */
+.dx-result-achievement { text-align:center; }
 /* 达成率标题：只画原版的字 UI_RSL_Text_Achievement（prefab 抓图 247x40）。
    那条 UI_RSL_Base_Achievement（408x122，prefab 抓图 1667x107）不再画 ——
    它比画面还宽、本是溢出裁切的装饰底，铺进这一行会露出它那个深藏青的左端头，
@@ -316,7 +431,24 @@
    原版它是挨着【小数那一段的上方偏中】。改成相对数字行定位。 */
 .dx-result-record { position:absolute; right:6%; top:52%; transform:rotate(-8deg); padding:4px 7px; color:#e0373d; border:2px solid #e0373d; border-radius:4px; font-size:11px; letter-spacing:1px; font-weight:900; background:#fff3cda8; }
 .dx-result-record[hidden] { display:none; }
-.dx-result-main { display:grid; grid-template-columns:1fr 250px; gap:24px; align-items:center; padding:20px 0 14px; }
+/* ═══ 列宽变量：左列 / 侧栏 ═════════════════════════════════════════════════════
+   用户口径：「达成率、评级标识、徽章和 DX 评分框要保持水平居中对齐」。
+   这四件东西分别住在三个不同的容器里（.dx-result-achievement-section 的第一列、
+   .dx-result-main 的左列、.dx-result-bottom 的第一列），所以**只有让三个容器
+   共用同一份列定义，它们的水平中轴才会天然重合**，不用去凑魔法数字。
+   合计实测（1200 视口，内容宽 764）：侧栏 300、列距 **28** → 左列 436、中轴 428.5。
+   ⚠️ 列距取 28 不是 24：main 实际生效的是这份文件后面那条 `.dx-result-main{gap:28px}`
+      （24 那条早被压掉了）。取 28 = 保持右半区（侧栏 300 / 板子 / 立绘）一个像素不动，
+      只把 section 和 bottom 拉到同一条中轴上。
+   改前：main 是 clamp(260,100vw-560,300) + gap28，bottom 却是固定 260 + gap28
+   → bottom 的第一列 476，中轴比左列右 18px；达成率数字更是根本没居中
+   （它左对齐在整张单子宽上，中轴 399.9，比左列中轴 428.5 左 28.6px）。
+   修完三处实测中轴：数字 428.5 / 段位 428.5 / 徽章 428.5 / DX 评分框 428.5。 */
+.dx-result { --mm-side-w:250px; --mm-col-gap:28px; }
+@media (min-width:641px) { .dx-result { --mm-side-w:clamp(260px, calc(100vw - 560px), 300px); } }
+@media (max-width:600px) { .dx-result { --mm-side-w:145px; --mm-col-gap:12px; } }
+
+.dx-result-main { display:grid; grid-template-columns:minmax(0,1fr) var(--mm-side-w); gap:var(--mm-col-gap); align-items:center; padding:20px 0 14px; }
 .dx-result-performance { min-width:0; }
 .dx-result-rank { text-align:center; font-family:Georgia,'Times New Roman',serif; font-size:clamp(80px,13vw,124px); line-height:1.05; font-weight:900; font-style:italic; letter-spacing:-6px; padding-right:12px; background:linear-gradient(125deg,#52e8fd 0%,#48b8f7 13%,#fbfcff 21%,#958cf4 28%,#733bee 34%,#f9b5e7 43%,#ff80b9 50%,#fff298 58%,#ffd946 65%,#e9ffff 72%,#43d6fd 81%,#9996ee 90%,#ea8fdd); background-clip:text; -webkit-text-fill-color:transparent; -webkit-text-stroke:1.1px #fff; filter:drop-shadow(1px 0 #283ea5) drop-shadow(-1px 0 #283ea5) drop-shadow(0 2px #283ea5) drop-shadow(0 2px #fff) drop-shadow(3px 3px #675ecfaa); }
 .dx-result-badges { display:flex; justify-content:center; gap:18px; margin-top:14px; }
@@ -474,7 +606,7 @@
 @media (max-width:600px) { .dx-result-medal > b { font-size:21px; } .dx-result-medal > small { font-size:5.5px; padding:1px 2px; margin-top:2px; } .dx-result-medal::after { right:-6px; top:-6px; font-size:17px; } }
 
 /* Balanced result layout: shared columns and centered score / action anchors. */
-.dx-result-main { grid-template-columns:minmax(0,1fr) 260px; gap:28px; padding:20px 0 22px; align-items:center; }
+.dx-result-main { grid-template-columns:minmax(0,1fr) var(--mm-side-w); gap:var(--mm-col-gap); padding:20px 0 22px; align-items:center; }
 .dx-result-performance { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; }
 .dx-result-rank { width:100%; font-size:112px; line-height:1.08; letter-spacing:-5px; padding-right:0; }
 /* 段位现在是官方字母精灵：高度的比例对着官方抓图（段位约占画面高的 30%）。
@@ -496,8 +628,12 @@
    3 个类名，只写 2 层会被它压掉 —— height 又变回 176px，加号就撑得跟字母一样大。
    尺寸来自官方整图 UI_GAM_Rank_SSSp 的差分测量（SSSp 减 SSS 就是加号）：
      单字母 30x39，加号 9x22  =>  高 0.564、宽 0.300、顶边偏移 +0.051*字母高
-   176 * 0.564 ≈ 99px，顶对齐再下移 0.051*176 ≈ 9px。 */
-.dx-result-rank .mm-rank-word .mm-rank-plus { height:99px; width:auto;
+   176 * 0.564 ≈ 99px，顶对齐再下移 0.051*176 ≈ 9px。
+   ⚠️ 用户口径「加号可以小一点」：99 → 78px（-21%），此时加号墨迹高 ≈ 44px，
+      相对字母 176px 是 0.25；原来 99px 时是 0.31 —— 官方整图差分出来的是 0.564/…
+      那套是相对**单字母 39px 墨迹**算的，直接套在 176px 的格子高上偏大，实测就是
+      "加号跟字母一样壮"。78px 是用户要的偏小一档。 */
+.dx-result-rank .mm-rank-word .mm-rank-plus { height:78px; width:auto;
   margin-left:-4px; align-self:flex-start; transform:translateY(-4px); }
 .dx-result-badges { margin-top:0; gap:22px; }
 .dx-result-detail { padding:12px; }
@@ -507,7 +643,21 @@
 .dx-result-verdicts { gap:5px; }
 .dx-result-verdict { min-height:26px; }
 .dx-result-rating { margin-top:10px; padding:8px 10px; }
-.dx-result-bottom { grid-template-columns:minmax(0,1fr) 260px; gap:28px; align-items:center; }
+.dx-result-bottom { grid-template-columns:minmax(0,1fr) var(--mm-side-w); gap:var(--mm-col-gap); align-items:center;
+  --mm-total-lift:60px; position:relative; }
+/* DX RATING 后面那条**淡蓝色横带**（用户口径「底下的 dx 分数框也有一个淡蓝色半透明背景条」）。
+   素材：`UI_RSL_Base_DXRATING.png`（224x86）—— 也不是纯色带，是一段**可横向平铺的花纹**：
+   左端 ‹‹‹、中间一颗空心星、右端 ›››，整条淡青底 + 上下淡紫边线
+   （官方抓图 y690..726 那一条上就重复着「☆ ››› ☆ ›››」✓）。
+   所以用 repeat-x 平铺、高度顶满 40px（官方 36/58 × 我们的框高 64.8 ≈ 40），
+   平铺周期 = 224 × 40/86 ≈ 104px。
+   位置：官方黄框（y680..737，中心 708.5）与这条**同一中心**，我们照此对齐。
+   ⚠️ 必须是 .dx-result-bottom 的伪元素、不能挂在框自己身上：框带 transform，
+      自建层叠上下文，挂负 z-index 的伪元素会被自己那层背景盖掉。
+   ⚠️ --mm-total-lift 与框的上抬共用同一个变量，改一处两边都跟上。 */
+.dx-result-bottom::before { content:''; position:absolute; z-index:-1; left:-28px; right:-28px;
+  top:calc(12px - var(--mm-total-lift)); height:40px; pointer-events:none;
+  background:url('/assets/mm-result/UI_RSL_Base_DXRATING.png') left center / auto 100% repeat-x; }
 .dx-result-bottom .dx-result-total { justify-self:center; width:min(340px,100%); box-sizing:border-box; justify-content:center; gap:14px; padding:8px 12px; }
 .dx-result-total-score strong { letter-spacing:1px; }
 .dx-result-bottom .dx-result-next { justify-self:center; justify-content:center; width:210px; padding:12px 18px; box-sizing:border-box; gap:20px; transform:rotate(-2deg); }
@@ -522,7 +672,7 @@
   .dx-result-rating { margin-top:8px; padding:7px 10px; }
 }
 @media (max-width:600px) {
-  .dx-result-main { grid-template-columns:minmax(0,1fr) 145px; gap:12px; padding:16px 0 18px; }
+  .dx-result-main { grid-template-columns:minmax(0,1fr) var(--mm-side-w); gap:var(--mm-col-gap); padding:16px 0 18px; }
   .dx-result-performance { gap:14px; }
   .dx-result-rank { font-size:clamp(48px,12vw,70px); letter-spacing:-3px; }
   .dx-result-badges { gap:14px; }
@@ -652,9 +802,7 @@
 /* 段位整体往上一点（用户要求） */
 .dx-result-rank { transform:translateY(-16px); }
 
-/* 达成率：小数位之间收紧、整组底部对齐 */
-.dx-result-achievement-value .mm-number-frac + .mm-number-frac { margin-left:-5px; }
-.dx-result-achievement-value .mm-number-int + .mm-number-int { margin-left:-6px; }
+/* 达成率大数字的字距/底线：见下面「达成率大数字」那一节（本文件里唯一一处生效的定义） */
 
 /* 底下的 DX RATING 框整体往上提一点（用户要求） */
 /* DX RATING：挪到徽章槽的下一行，并和徽章槽水平对齐。
@@ -665,15 +813,58 @@
 .dx-result-bottom .dx-result-total { transform:translateY(-60px); }
 .dx-result-total-delta { top:calc(100% + 3px); }
 
-/* 达成率数字：小数点要和整数/小数底部对齐 —— 那个 glyph 图里下方有透明留白，
-   直接 flex-end 仍会显得偏高，所以单独往下压一点。 */
-/* 小数点下压 —— 实测：小数图集格子高 98，数字字形底在 91~93（底留白 4~6），
-   而小数点字形底只到 81（底留白 16）=> 比数字高 12px。
-   显示尺寸 72px / 格子 98 = 0.735 => 12 x 0.735 = 8.8px，取 -9。*/
-.dx-result-achievement-value .mm-number-frac { margin-bottom:-9px; }
-/* 字间距再收紧 */
-.dx-result-achievement-value .mm-number-int + .mm-number-int  { margin-left:-12px; }
-.dx-result-achievement-value .mm-number-frac + .mm-number-frac { margin-left:-10px; }
+/* ═══ 达成率大数字：字距 + 一条底线 ═══════════════════════════════════════════
+   用户口径：「字间距小一点，所有文字的最底端对齐」。
+
+   ⚠️ 这里所有选择器都写了两层类（.dx-result-achievement-value .mm-number …），
+      不是啰嗦：maimai-glyphs.css 在 dx-result.css **之后**加载，而
+      `.mm-number .mm-number-int + .mm-number-int` 与
+      `.dx-result-achievement-value .mm-number-int + .mm-number-int` 同是 (0,3,0)，
+      源序在后的赢 —— 所以这个文件里原来那两条 -12px / -10px **从来没生效过**，
+      实际字距一直是 glyphs 表的 -0.08n / -0.067n（--n:90 时 = -7.2 / -6.03px）。
+      多挂一层 .mm-number 提到 (0,4,0) 才压得住。
+   ⚠️ 数值一律按 --n 的倍数写（旁边的 px 是 --n:90px 时的实际值），--n 变了两者一起缩。
+
+   量法：拿每个精灵的**实心**墨迹（alpha>200）在格子里的留白，两字之间的实心缝
+        = 外边距 + 前字右留白 + 后字左留白。
+        实心留白（--n:90px 下的显示尺寸）：
+          整数格  左2.3  右2.3  底3.8     （'1' 左4.9 右4.3；'9'/'0' 同 2.3）
+          小数格  左4.6  右4.6  底3.8     （'7' 左6.9 右5.4 底4.6）
+          小数点  左16.9 右15.4 底12.3    ← 它才是字距松的元凶
+          '%'     左2.3  右2.3  底2.3
+   目标：数字之间实心重叠约 3px（官方也是咬在一起的），小数点两侧各留约 5px。 */
+
+/* 数字之间：实心重叠 3.05px = -0.085×90 + 2.3 + 2.3 */
+.dx-result-achievement-value .mm-number .mm-number-int + .mm-number-int {
+  margin-left:calc(var(--n, 1em) * -0.085); }
+/* 小数位之间：按同样比例给（实心重叠 2.3px = -0.128×90 + 4.6 + 4.6） */
+.dx-result-achievement-value .mm-number .mm-number-frac + .mm-number-frac {
+  margin-left:calc(var(--n, 1em) * -0.128); }
+/* 小数点两侧：原来左边没有规则（靠格子留白 = 19.2px 的大空档），右边走 frac+frac 只有
+   16.3px。现在两边都收到 5px 上下。
+   ⚠️ 小数点同时挂着 mm-number-frac，所以下面这两条必须写在 frac+frac 那条**之后**：
+      两者的选择器都是 (0,4,0)，靠源序压住它。 */
+.dx-result-achievement-value .mm-number .mm-number-int + .mm-number-dot {
+  margin-left:calc(var(--n, 1em) * -0.158); }
+.dx-result-achievement-value .mm-number .mm-number-dot + .mm-number-frac {
+  margin-left:calc(var(--n, 1em) * -0.174); }
+/* '%'：原来 glyphs 表的 -0.04n 让实心缝只有 1.5px，偏挤，放到 2.4px */
+.dx-result-achievement-value .mm-number .mm-number-percent {
+  margin-left:calc(var(--n, 1em) * -0.05); }
+
+/* 底线：三族格子的**底留心**不一样（整数 3.8 / 小数 3.8 / 小数点 12.3 / '%' 2.3），
+   所以盒子底对齐之后墨迹底并不齐 —— 小数位整族再往下压 9px 的老写法，是把
+   **小数点**的账记到了整族头上：实测 '7000' 的墨迹底因此比 '99' 低 9.1px。
+   现在按族分开记：
+     小数位  底留心 3.8 = 整数格 3.8        → 不动（'7' 是 4.6，比别的字高 0.8px，
+                                              同族内没法再分，忽略）
+     小数点  12.3 - 3.8 = 8.5px            → margin-bottom 压 8.5px
+     '%'     2.3 - 3.8 = -1.5px            → margin-bottom 抬 1.5px
+   结果：整串的实心墨迹底落在同一条线上（同族内剩余离散度 <0.9px）。 */
+.dx-result-achievement-value .mm-number-dot {
+  margin-bottom:calc(var(--n, 1em) * -0.101); }
+.dx-result-achievement-value .mm-number-percent {
+  margin-bottom:calc(var(--n, 1em) * 0.017); }
 
 /* ═══ 右半区：看板娘站在右下角，半透明成绩板浮在它上面 ═══════════════════════
    官方结算画面里看板娘的容器是 Main/Null_NavicharaRoot：
@@ -690,91 +881,132 @@
    成绩板 z-index:1 显式压在上面 —— 顺序不靠 DOM 先后，也不怕以后有人加节点。
    ────────────────────────────────────────────────────────────────────────── */
 .dx-result-side { position:relative; align-self:stretch; display:grid;
-  align-content:center; min-width:0; }
+  align-content:end; padding-bottom:26px; min-width:0; }
+/* ⚠️ 板子在列里**底对齐**（原来居中）：板高 242.6 固定，居中时上沿落在 436.4，
+   正好从人的胸口切过去；底对齐到距列底 26px（=面板底 698.8、上沿 456.2）后，
+   板子上沿往下让出 19.8px，同时板底仍比人的脚（720.8）高 22px —— 脚照样露在板子下面。
+   ⚠️ 这 26px 不能再大：再下去板底就会盖住脚。想让人露更多只能压板高，不能挪板子。 */
 
-/* 成绩板：官方面板那套深蓝玻璃 + 亮青硬描边 + 四角切角。
-   底色只有 6~7 成不透明 —— 看板娘从板子后面透出来（用户要的"半透明"就在这一行）。
+/* 成绩板 ＝ 客户端 `UI_ScoreBoardDisplay/Base`，也就是 `UI_RSL_DetailsBase`。
+   那张 232×198 的图逐像素量过，事实是：
+     · 内容从 (9, 6) 起，圆角半径 ≈10px（占宽 4.6%），四角一样圆
+     · 内层填充 alpha 均值 187/255、颜色 #F7F7FC —— 近白的磨砂玻璃，不是深蓝
+     · 最外一圈 1~2px 是 alpha 229 的纯白描边，上边缘比下边缘亮
+   → 官方这块板子的语言是「近白半透明玻璃 + 白描边 + 小圆角」，
+     之前那套深蓝底 + 亮青硬描边 + 四角切角不是它。
+   板子要能让立绘透出来。中间试过「底色 0.59 + 顶部 0.88 的渐变」那一版 ——
+   两层叠加后实际不透明度 0.79~0.95，立绘整片糊掉，跟不透明没区别，已否掉。
+   现在是底色 0.39 + 渐变 0.24/0.06/0.15，叠加后实际约 0.43~0.53，
+   这才是「看得见人的半透明板」（官方自己那张是 0.73，它底下没有站人）。
+   ⚠️ 上一版是 0.46 + 0.30/0.08/0.18（叠出来 0.50~0.62），人隔着板子只读得出个影子，
+      用户口径是"整个人被盖住"，所以再让一档 —— 判定行的色带本身是不透明的，
+      数字和标签都压在色带上，降这一档不影响读数。
+   官方图上的那层高光和描边不手画：::before 把原图按板子尺寸铺开再压到半透明，
+   圆角就是原图的圆角；图挂了也不影响，底下的 CSS 自己成立。
    不用 backdrop-filter：那会把立绘糊掉，"看得见人"优先于"字更好读"。 */
 .dx-result-detail {
   position:relative; z-index:1; box-sizing:border-box; width:100%;
-  padding:12px 12px 11px;
-  border:2px solid #d3f2ffbf;
-  border-radius:15px 5px 15px 5px;
-  background:linear-gradient(157deg,#0a1d55bd 0%,#08164799 42%,#123a86b0 74%,#0b2059a6 100%);
-  box-shadow:inset 0 1px 0 #ffffff2b,inset 0 0 0 1px #3f7ad64d,
-    inset 0 -20px 34px #0612344d,0 0 0 1px #0a1c4973,0 14px 30px #0612335e;
-  color:#eaf6ff;
+  padding:12px 13px 11px;
+  border:2px solid #ffffffeb;
+  border-radius:13px;
+  background-color:#ffffff63;
+  background-image:linear-gradient(180deg,#ffffff3d 0%,#e2ecff0f 52%,#c4d6f626 100%);
+  box-shadow:inset 0 2px 0 #ffffffd9,inset 0 0 0 1px #cbdcf894,
+    inset 0 -14px 26px #9db6de3d,0 1px 0 #ffffff9c,0 10px 24px #24386b3d;
+  color:#17356e;
   overflow:hidden;
 }
-/* 顶上一条棱镜细线、右下角一块切角高光：官方那套硬边+反光的语言 */
-.dx-result-detail::before { content:''; position:absolute; left:0; top:0; right:0; height:3px;
-  background:linear-gradient(90deg,#6ff2ff,#8ea2ff 38%,#f7a8f0 62%,#ffe98a);
-  opacity:.85; pointer-events:none; }
-.dx-result-detail::after { content:''; position:absolute; right:0; bottom:0; width:54px; height:54px;
-  background:linear-gradient(135deg,transparent 47%,#bfe9ff33 48%); pointer-events:none; }
+.dx-result-detail::before { content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
+  border-radius:inherit; opacity:.5;
+  background:url('/assets/mm-result/UI_RSL_DetailsBase.png') center/100% 100% no-repeat; }
 
-/* PLAY TIME：左边青色小字标签，右边白色等宽数字 */
-.dx-result-time { display:flex; align-items:baseline; justify-content:space-between; gap:8px;
-  margin:0 0 9px; padding:1px 2px 8px; border:0; border-bottom:1px solid #86d9ff3d;
-  border-radius:0; background:none; text-align:left; }
-.dx-result-time small { display:block; margin:0; color:#8fdcff; font-size:8.5px;
-  font-weight:800; letter-spacing:2px; text-shadow:0 1px 2px #04102e; }
-.dx-result-time strong { color:#fff; font-size:25px; font-weight:800; letter-spacing:.5px;
-  font-variant-numeric:tabular-nums; text-shadow:0 0 12px #58c8ff7a,0 1px 0 #061436; }
+/* PLAY TIME：官方面板上的小标题条。
+   `UI_RSL_DXScore_Base`（226×54）量出来是「深蓝标签带压在上、白底数值位在下、
+   外圈一道深色描边、圆角 ≈10px」，`UI_CMN_RSL_AllScorekBase` 的「合計スコア」
+   则是一条白胶囊；抓图里曲目板顶行也是「标签 + 一排 >>>」。
+   这里就照这个来：浅色小板、左标签右数值、右端收一排雪佛龙。 */
+.dx-result-time { position:relative; display:flex; align-items:baseline; justify-content:space-between;
+  gap:8px; margin:0 0 9px; padding:5px 40px 5px 9px; border:0; border-radius:8px;
+  background:linear-gradient(180deg,#fffffff2,#e7effdf2);
+  box-shadow:inset 0 0 0 1px #ffffff,0 1px 0 #b7cbeb99; text-align:left; }
+.dx-result-time small { display:block; margin:0; color:#4b6ba6; font-size:8.5px;
+  font-weight:800; letter-spacing:2px; text-shadow:0 1px 0 #fff; }
+.dx-result-time strong { color:#12307c; font-size:24px; font-weight:900; letter-spacing:.5px;
+  font-variant-numeric:tabular-nums; text-shadow:0 1px 0 #ffffffb8; }
+/* 右端那排 `>>>`：官方 `UI_RSL_Base_DXRATING` 右端就是三连箭头。
+   用 SVG 画箭头比手搓渐变靠谱，缩放也不糊。 */
+.dx-result-time::after { content:''; position:absolute; right:9px; top:50%; width:27px; height:12px;
+  transform:translateY(-50%); opacity:.5; pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='12' viewBox='0 0 10 12'%3E%3Cpath d='M1.5 1l5 5-5 5' fill='none' stroke='%236f8fc4' stroke-width='2.2' stroke-linecap='square'/%3E%3C/svg%3E") left center/9px 12px repeat-x; }
 
-/* 判定行：判定色不动（AC 绿 / WA 粉 / TLE 琥珀 / RE 紫 / CE 灰），
-   但改成半透明玻璃条，立绘从这里也能透出来；数字块留白，压住底色好读。 */
-.dx-result-verdicts { gap:5px; }
+/* 判定行 ＝ 客户端 `UI_RSL_Totalscore`（162×152）那张表。量出来的事实：
+     · 四行色带：PERFECT rgb(251,193,36) / GREAT rgb(255,131,182) /
+       GOOD rgb(71,212,93) / MISS rgb(196,197,189)
+     · 行与行**紧贴**、中间没有缝，整块只有最外侧两角是圆的（上排顶角、下排底角）
+     · 每行左边留白，右侧一个白底圆角计数格，边框用本行的颜色（约 2px）
+     · 标签是白字 + 同色深描边，不是深色实心字
+   → 所以这里做成「一张分段的实心表」，不是四条各自圆角的胶囊。
+   判定色沿用本页原来的语义色：AC 绿 / WA 粉 / TLE 琥珀 / RE 紫 / CE 灰。 */
+.dx-result-verdicts { gap:0; border-radius:9px; overflow:hidden;
+  box-shadow:0 0 0 1px #ffffffd0,0 2px 6px #24386b2e; }
 .dx-result-verdict { --verdict-rgb:16 176 132;
   display:grid; grid-template-columns:1fr 62px; align-items:center;
-  min-height:26px; padding-left:11px; border:1px solid #ffffff42; border-radius:6px;
-  background:linear-gradient(100deg,rgb(var(--verdict-rgb) / .82),rgb(var(--verdict-rgb) / .5) 62%,rgb(var(--verdict-rgb) / .32));
-  box-shadow:inset 0 1px 0 #ffffff3d,0 1px 2px #04102e47;
-  color:#fff; font-size:12px; font-weight:800; letter-spacing:1px;
-  text-shadow:0 1px 2px #05204a9e; }
-.dx-result-verdict strong { border:0; border-left:1px solid #ffffff5c; border-radius:0 5px 5px 0;
-  background:linear-gradient(#ffffffd6,#eaf7ffe0); color:var(--verdict-color);
-  font-family:'Arial',sans-serif; font-size:19px; font-weight:800; letter-spacing:0;
-  line-height:1.15; padding:2px 0; }
+  min-height:26px; padding-left:11px; border:0; border-radius:0;
+  background:linear-gradient(100deg,rgb(var(--verdict-rgb) / .94),rgb(var(--verdict-rgb) / .72));
+  box-shadow:inset 0 1px 0 #ffffff59,inset 0 -1px 0 #0b23471f;
+  color:#fff; font-size:12px; font-weight:900; letter-spacing:1px;
+  text-shadow:0 1px 2px rgb(var(--verdict-rgb) / .95),0 0 1px #0b2347a8; }
+.dx-result-verdict strong { align-self:stretch; display:grid; align-items:center; justify-items:center;
+  margin:3px 3px 3px 0; border:2px solid rgb(var(--verdict-rgb)); border-radius:6px;
+  background:linear-gradient(#ffffff,#eef5ff); color:rgb(var(--verdict-rgb));
+  font-family:'Arial',sans-serif; font-size:17px; font-weight:900; letter-spacing:0;
+  line-height:1; text-shadow:none; }
 .dx-result-verdict-wa { --verdict-rgb:219 84 117; }
 .dx-result-verdict-tle { --verdict-rgb:201 154 46; }
 .dx-result-verdict-re { --verdict-rgb:150 112 202; }
 .dx-result-verdict-ce,.dx-result-verdict-other,.dx-result-verdict-pending,.dx-result-verdict-mle { --verdict-rgb:107 136 174; }
 
-/* Rating：板子最底下一格，深蓝底 + 淡青描边，数字白色带冷光 */
-.dx-result-rating { margin-top:10px; padding:8px 10px; gap:8px;
-  border:1px solid #9fd6ff6b; border-radius:7px;
-  background:linear-gradient(135deg,#1c47a3a8,#0b2159a0);
-  box-shadow:inset 0 1px 0 #ffffff26,0 0 0 1px #0614375c; }
-.dx-result-rating small { color:#9fe4ff; font-size:11px; font-weight:600; letter-spacing:.3px; }
-.dx-result-rating strong { color:#fff; font-family:'Arial',sans-serif; font-size:24px;
-  font-weight:800; line-height:1; font-variant-numeric:tabular-nums;
-  text-shadow:0 0 12px #7fd8ff85; }
-.dx-result-single-delta { color:#ffe38e; font-size:12px; font-weight:700; }
+/* Rating ＝ 客户端 `UI_RSL_DXScore_Base` 那块「深蓝圆角板 + 白字段」：
+   深蓝标签带上放标签（官方用黄字），下半是白底数值位，外圈一道深蓝描边。
+   抓图里那块蓝底 rating 牌（蓝板 + 红字 + 白底数字位 + 底下小白胶囊）是同一套。 */
+.dx-result-rating { display:flex; align-items:center; gap:8px; color:#fff;
+  margin-top:10px; padding:6px 7px 6px 10px;
+  border:2px solid #16307c; border-radius:9px;
+  background:linear-gradient(180deg,#2f5cbb,#16307c);
+  box-shadow:inset 0 1px 0 #ffffff4d,0 2px 0 #ffffff8c,0 4px 10px #24386b33; }
+.dx-result-rating small { color:#ffe065; font-size:11px; font-weight:900; letter-spacing:.4px;
+  text-shadow:0 1px 2px #0a1c4c; }
+.dx-result-rating strong { margin-left:auto; padding:2px 10px; border-radius:6px;
+  background:linear-gradient(#ffffff,#e8f0ff); color:#12307c;
+  font-family:'Arial',sans-serif; font-size:20px; font-weight:900; line-height:1.2;
+  font-variant-numeric:tabular-nums; }
+.dx-result-single-delta { color:#ffe38e; font-size:12px; font-weight:800; text-shadow:0 1px 2px #0a1c4c; }
 
 /* 矮窗 / 窄屏：上面那两段媒体查询写在我前面，会被这一节的基线规则盖掉，
-   所以同样的压缩量必须在这里再写一遍。 */
+   所以同样的压缩量必须在这里再写一遍。
+   ⚠️ 立绘不在这张名单里：矮窗只让弹窗滚动，单子内部几何不变（见 .dx-result-mascot
+      那段注释里的六档实测），再压一遍只会让 740 以下的窗口里人变小、头顶离卡片更远。 */
 @media (max-height:740px) and (min-width:601px) {
-  .dx-result-mascot { height:340px; }
   .dx-result-detail { padding:9px; }
-  .dx-result-time { padding-bottom:6px; margin-bottom:7px; }
+  .dx-result-time { padding:4px 37px 4px 8px; margin-bottom:7px; }
   .dx-result-time strong { font-size:22px; }
   .dx-result-verdict { min-height:23px; }
-  .dx-result-verdict strong { font-size:18px; line-height:1.1; padding:1px 0; }
-  .dx-result-rating { margin-top:8px; padding:6px 9px; }
-  .dx-result-rating strong { font-size:22px; }
+  .dx-result-verdict strong { font-size:16px; margin:2px 2px 2px 0; }
+  .dx-result-rating { margin-top:8px; padding:5px 6px 5px 9px; }
+  .dx-result-rating strong { font-size:18px; }
 }
 @media (max-width:600px) {
   .dx-result-detail { padding:7px; }
   .dx-result-time { flex-direction:column; align-items:flex-start; gap:2px;
-    padding:0 0 7px; margin-bottom:7px; }
+    padding:5px 34px 5px 7px; margin-bottom:7px; }
   .dx-result-time strong { font-size:19px; letter-spacing:.3px; }
   .dx-result-time small { font-size:7.5px; letter-spacing:1.4px; }
+  .dx-result-time::after { right:6px; width:21px; }
   .dx-result-verdict { grid-template-columns:1fr 38px; padding-left:7px; font-size:10px; min-height:24px; }
-  .dx-result-verdict strong { font-size:17px; }
-  .dx-result-rating { margin-top:7px; padding:6px; gap:5px; }
+  .dx-result-verdict strong { font-size:15px; margin:2px 2px 2px 0; }
+  .dx-result-rating { margin-top:7px; padding:5px 6px 5px 8px; gap:5px; }
   .dx-result-rating small { font-size:9px; }
-  .dx-result-rating strong { font-size:19px; }
+  .dx-result-rating strong { font-size:18px; padding:2px 7px; }
   .dx-result-single-delta { font-size:9px; }
 }
 
@@ -783,3 +1015,58 @@
 .dx-result-track[data-rating-tone="unrated"] .dx-result-track-slot {
   --mm-slot-fill:color-mix(in srgb, var(--mm-field) 42%, #ffffff);
 }
+
+/* ═══ 右半区（续）：板子加宽压矮 ═══════════════════════════════════════════════
+   用户口径：「人被板子整片盖住 —— 板子要更宽更矮，人要在板子周围读得出来」。
+   分两件事：列宽（下面两段 @media）和板子自身的高度（这一节末尾那组规则）。
+   立绘的高度在看板娘那条基线规则里已经改成 470。
+
+   ⚠️ 这一段所有选择器都多挂一层 `.dx-result-side`：
+   dan.js 的单题结算共用 .dx-result-detail / .dx-result-time / .dx-result-verdict /
+   .dx-result-rating（见 dan.js 的 buildStageDialog），但它的成绩板外面**没有**
+   .dx-result-side —— 多这一层就只改 dx 这张单子，dan 那页一个像素都不动。
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* 列宽：立绘那一列比原来宽。上限不是审美定的，是左列段位字串顶出来的 ——
+   三字 + 加号（SSS+）实测 465.1px 宽，居中摆在左列里，比列还宽、向两侧对称溢出，
+   而加号的墨迹只比它的盒子窄 4px（精灵 88x96，ink 到 x=83），再叠上段位那条
+   3px 的投影，基本就是贴边画。所以板子左缘必须离它远一点。
+   实测（当前布局）：
+     820 视口  弹窗被 100vw-28 卡住，单子只有 771 宽、内容 715：
+               段位右缘 497、板子左缘 500 —— 只剩 3.4px，这一档根本加不了宽；
+     870 视口  单子回到 820 满宽（801 那档还在被 100vw 卡着），内容 764，
+               段位右缘 662、板子左缘 675 —— 13px，能加到 300；
+     1200      同上，300 就是上限（310 只剩 8px，327 开始啃单子左边缘）。
+   所以用 clamp 让它随视口线性长：vw-560 这条线是「单子还没满宽时左列正好 427px」
+   量出来的 —— 820 时算出来 260（= 改前，不动），~870 时 310 被上限截到 300。
+   改前板子恒为 260；改后 1200 视口 300、820 视口仍是 260。 */
+@media (min-width:641px) {
+  .dx-result-main:has(> .dx-result-side) {
+    grid-template-columns:minmax(0,1fr) var(--mm-side-w);
+  }
+}
+
+/* 压矮：原 290.3 -> 242.6（-16.4%），宽高比 0.90 -> 1.24。
+   逐块量出来的账（1200 视口）：
+     PLAY TIME 带   45.3 -> 30   字 24->21、上下内边距 5->4
+     五行判定        155 -> 135  行高 31->27（计数格 margin 3->2、字号 17->15）
+     Rating 条       44  -> 39.6 字 20->18、内边距 6->5
+     板子内边距      12/13/11 -> 10/13/9
+   字号只往下一档，判定色带和计数格描边照旧，读数不受影响。
+   ⚠️ 整套只写在 min-width:641px 里（= 立绘还在的那一档）：
+   601 以下的窄屏有自己的竖排 PLAY TIME 和 7px 内边距，这几条挂上去只会把
+   那块板子顶高 6px（量过），所以窄屏照旧。 */
+@media (min-width:641px) {
+  .dx-result-side > .dx-result-detail { padding:10px 13px 9px; }
+  .dx-result-side .dx-result-time { padding:4px 38px 4px 9px; margin-bottom:7px; }
+  .dx-result-side .dx-result-time strong { font-size:21px; }
+  .dx-result-side .dx-result-verdict { min-height:22px; font-size:11.5px; }
+  .dx-result-side .dx-result-verdict strong { margin:2px 2px 2px 0; font-size:15px; }
+  .dx-result-side .dx-result-rating { margin-top:8px; padding:5px 7px 5px 9px; }
+  .dx-result-side .dx-result-rating strong { font-size:18px; }
+}
+
+/* 立绘的矮窗覆盖已撤（原 `.dx-result-side .dx-result-mascot{height:470px}`）：
+   身高现在按 --mm-mascot-h 走、头顶锚在卡片下沿，而「卡片下沿→侧栏顶 178px」
+   和「侧栏底→单子底 129px」这两段在矮窗里量出来与基线完全一致，
+   所以矮窗不需要也不应该再缩一次。要调大小只改 --mm-mascot-h 一个数。 */
