@@ -99,11 +99,48 @@
   --mm-field:#ff86fe; --mm-plate-filter:none;
   --track-main:#7b8391; --track-deep:#3f4652;
   position:relative; height:var(--mm-card-h); margin:2px 0 3px; color:#fff;
+  /* ⚠️ 下面这条硬投影只留给 dan.js 的单题结算（它共用 .dx-result-track、但没有底板）。
+     精灵卡（带 data-rating-tone 的那张）会把这条撤掉，原因见后面那条同名注释。 */
   box-shadow:0 4px 0 var(--track-deep),0 8px 16px #00000033;
 }
 /* 底板那一层。滤镜只作用在这里 —— cover 也在里面，所以盖上去的那块底色会一起被拉过去 */
 .dx-result-track-art { position:absolute; inset:0; filter:var(--mm-plate-filter); }
 .dx-result-track-plate { position:absolute; inset:0; background:var(--mm-plate) 0 0/100% 100% no-repeat; }
+/* 精灵卡（problemCard）不要那条 `0 4px 0` 的硬投影 —— 它不是卡片的边，是 CSS 盒子的矩形边。
+   卡片真正的剪影在底板精灵里（圆角 + 右端圆盘），而外投影是按**盒子**投的，于是画出来是
+   "卡片圆角底下面一条游离的方角暗杠"：
+     · 精灵底部还多出 2 行全透明（MST/BSC/ADV/EXP/DMY 在 y140..141，UTG 在 y139..140），
+       盒底比剪影底低 2.5px（1200 视口，卡高 118）→ 暗杠和卡片之间隔着一道 2.5px 亮缝，
+       看着不是"卡片的边"，而是浮在下面的一条杠；
+     · 端点按盒子方角走 → 跨满 764px 盒宽，而卡片在那一行只有 722px，左右各多出约 10px，
+       正好压在圆角外面那两块本该透出背景的地方。
+   ⚠️ 换 background-size / 裁精灵都修不掉它：底板本身**没有**圆角轮廓以外的画（逐行验证过
+      alpha 每行都是连通的一段，包围盒 x2..742 / y2..139，框外全透明），暗色来自 CSS 盒子。
+     也试过用底板当 mask 把这条投影改成随圆角走的"底座"——暗杠确实贴上了卡片，但卡片底下
+      还是留着一条 4px 暗带，用户投诉的就是这条带，等于没解决，所以没采用。
+   ✅ 这张卡只留环境投影。卡片的下边缘不会因此缺一条边：底板自己四周有 2px 描边。
+   ⚠️ 只给精灵卡（data-rating-tone 由 dx-timer.js:76 挂）：dan.js:436 的单题结算也写
+      .dx-result-track，但它没有底板，那条硬投影是它唯一的底边，不能跟着一起撤。 */
+.dx-result-track[data-rating-tone] { box-shadow:0 8px 16px #00000033; }
+/* 整块卡上提，把它拉到 CLEAR! 词标跟前。
+   底板精灵顶上有 37/142 个卡高是**全透明**的（只有右端圆盘冒头，见 UI_RSL_MBase_* 的
+   alpha 轮廓），所以光看盒子间距看不出这段空档有多虚 ——
+   1200 视口实测（卡 764x118）：CLEAR! 墨迹底 y108.1 → 卡面实体顶 y165.1 = 57.0px，
+   其中 30.75px 就是这条透明带，盒顶离墨迹底只有 26.3px。
+   margin-top 从 2px 改成 calc(2px - .35 * --mm-card-h) = -39.3px 后整块卡上移 39.3px
+   —— ⚠️ 不是 41.3px：原来那 2px 本来就被上面 15px 的 margin-bottom 折叠吃掉了
+   （相邻兄弟的正外边距取 max，负值再叠加），所以位移 = 0 + 39.3。
+   上移后同一视口实测：
+     盒顶 134.4 → 95.1，卡面实体顶 165.1 → 125.8，离词标墨迹底只剩 17.7px；
+     右端圆盘顶 136.0 → 96.7，比词标墨迹底还高 11.4px，**探进词标那条带子里** ——
+     这是允许的：圆盘在卡宽 80.8% 起（1200 时 x841..963），词标墨迹右缘只到 x744，
+     横向差 97px，圆盘盖不到任何一个字；卡面实体横跨整卡宽，仍低于墨迹底 17.7px。
+   逐像素验证（1200 视口，词标墨迹那一带 x430..755 / y64..125，把卡 visibility 藏掉对比）：
+     最大像素差 7（= 结算背景 iframe 的动画噪声），字形墨迹被盖掉 0 个像素。
+   ⚠️ 选择器必须限定在有底板的精灵卡上（data-rating-tone 由 dx-timer.js:76 挂）：
+      dan.js:436 的单题结算共用 .dx-result-track，但它没有底板、也不是这个版面，
+      上提会把它的版式带坏（dan 的 data-rating-tone 是挂在 .dx-result-total 上的）。 */
+.dx-result-track[data-rating-tone] { margin-top:calc(2px - var(--mm-card-h) * .35); }
 /* 盖掉板上烤着的难度名：填同一张板那一带的干净底色（不是渐变，板面在那里是平色），
    位置按 prefab 量（原生 x96..304 / y41..87）。不带圆角，否则边上会露出来一线 */
 .dx-result-track-cover { position:absolute; left:12.89%; top:28.87%; width:27.92%; height:32.39%; background:var(--mm-field); }
@@ -739,4 +776,10 @@
   .dx-result-rating small { font-size:9px; }
   .dx-result-rating strong { font-size:19px; }
   .dx-result-single-delta { font-size:9px; }
+}
+
+/* unrated 档用的是 UTAGE 卡（洋红），但共享色表里 unrated 的主色是灰，
+   槽位按 --track-main 混白就是一块灰压在粉卡上。这一档改跟卡面平色走。 */
+.dx-result-track[data-rating-tone="unrated"] .dx-result-track-slot {
+  --mm-slot-fill:color-mix(in srgb, var(--mm-field) 42%, #ffffff);
 }
