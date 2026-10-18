@@ -1166,14 +1166,16 @@ const timerController=initDxTimer({getUser:()=>state.userId,onComplete:()=>load(
 await loadMeta();
 await timerController.refresh().catch(error=>{$('timerStatus').textContent=error.message;});
 // ?resultPreview=1 用样例把结算弹窗直接弹出来：调这块 UI 时不用真做完一道题。
-// 再配 ?achievement=98.7654 能试不同达成率下的排版。
+// 再配 ?achievement=98.7654 能试不同达成率下的排版；
+// ?difficulty=3000 / ?difficulty= 能试题目卡换难度配色、以及「还没难度」那一档（?difficulty= 给空值）。
 if (pageParams.get('resultPreview') === '1') {
+  const previewDifficulty = pageParams.get('difficulty');
   timerController.previewResult({
-    problemId: '1999A',
+    problemId: pageParams.get('problem') ?? '1999A',
     result: {
       dailyTrack: 3,
-      difficulty: '1700',
-      title: 'Two Permutations',
+      difficulty: previewDifficulty === null ? '1700' : (previewDifficulty.trim() === '' ? null : previewDifficulty),
+      title: pageParams.get('title') ?? 'Two Permutations',
       practiceKind: 'first',
       seconds: 1837,
       // 段位不用给：弹窗按达成率自己查表（评级只跟达成率有关），

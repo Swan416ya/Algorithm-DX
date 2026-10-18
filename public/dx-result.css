@@ -52,18 +52,184 @@
 .dx-result-track-word .mm-glyph { height:24px; }
 .dx-result-clear { margin:0; text-align:center; font-family:Georgia,'Times New Roman',serif; font-weight:900; font-size:66px; line-height:.98; letter-spacing:7px; color:#fff; background:linear-gradient(110deg,#2ce2ff 8%,#effcff 18%,#945bff 32%,#fff0fa 44%,#ff79bf 55%,#fff4a2 66%,#51dafa 78%,#fff 88%); background-clip:text; -webkit-text-fill-color:transparent; -webkit-text-stroke:1px #fff; filter:drop-shadow(1px 0 #23368b) drop-shadow(-1px 0 #23368b) drop-shadow(0 2px #23368b) drop-shadow(0 2px #fff) drop-shadow(2px 2px #5caef3); }
 .dx-result-subtitle { margin:2px 0 13px; text-align:center; font-weight:900; font-size:15px; color:#ffef8e; -webkit-text-stroke:.6px #46318a; text-shadow:0 2px #fff; }
-.dx-result-track { position:relative; display:grid; grid-template-columns:62px 1fr 74px; gap:10px; align-items:center; padding:7px 8px; border:3px solid #6224b1; border-radius:12px 35px 35px 12px; background:linear-gradient(100deg,#bb51f1,#a846e8 45%,#8339dc); color:#fff; box-shadow:inset 0 1px 0 #edb5ff,0 3px 0 #f2c4fb; }
-.dx-result-track::before { content:''; position:absolute; pointer-events:none; inset:0; border-radius:inherit; opacity:.24; background:repeating-conic-gradient(#4d0c97 0% 25%,transparent 0% 50%) 0 0/18px 18px; }
-.dx-result-track-icon { z-index:1; position:relative; height:62px; border:2px solid #d2fbff; border-radius:4px; display:grid; place-content:center; overflow:hidden; font-style:italic; font-size:25px; font-weight:1000; color:#fff7aa; text-shadow:1px 2px #223d8e; background:conic-gradient(from 35deg,#8d49e9,#30cffa,#122e7e,#9f46cd,#8d49e9); box-shadow:0 0 0 1px #25468c; }
-.dx-result-track-icon span { position:absolute; color:#ffffff70; font-size:70px; left:-5px; top:-15px; z-index:-1; }
-.dx-result-track-content { position:relative; min-width:0; }
-.dx-result-track-heading { display:flex; align-items:center; gap:10px; margin-bottom:6px; font-weight:900; font-size:14px; }
-.dx-result-problem { font-size:10px; opacity:.85; }
-.dx-result-track-heading i { margin-left:auto; padding:2px 10px; color:#f88728; background:#edf8ff; border-radius:12px; font-size:12px; font-style:normal; text-shadow:1px 0 #fff084; }
-.dx-result-name { margin:0; padding:6px 12px; border-radius:7px; color:#fff; background:linear-gradient(#153c91,#092b73); box-shadow:inset 0 1px 3px #060d66; font-size:17px; font-weight:800; text-align:center; overflow-wrap:anywhere; }
-.dx-result-level { z-index:1; display:flex; flex-direction:column; text-align:center; }
-.dx-result-level small { font-size:11px; font-weight:800; }
-.dx-result-level strong { font-size:28px; letter-spacing:-1px; text-shadow:2px 2px #562795; }
+/* ---------- 题目卡（原「乐曲卡」） ----------
+   整块卡是官方那张乐曲底板 UI_RSL_MBase_*（745x142 原生）撑起来的，不再是 CSS 画的圆角条。
+   卡片高度 = --mm-card-h；卡里横向位置一律用底板的百分比（x/745）、纵向用（y/142），
+   所以改高度整块卡会等比缩放（上下略压扁，官方板本来也是横长条）。
+   构件坐标来自 prefab（原生 px，相对底板左上角）：
+     曲绘槽   x11..95   y47..131   → 放题号（板上那块纯黑就是游戏里的曲绘位）
+     难度名   x96..304  y41..87    → 板上烤着 BASIC/ADVANCED/EXPERT…，要盖掉
+     标题条   x106..709 y88..128   → 放题名
+     GameType x488..572 y51..75    → 官方 でらっくす 小牌
+     LV/等级  x≈605..745（右侧圆盘，圆心≈(672,73)、r≈67）
+   颜色：--mm-plate / --mm-plate-filter 由 maimai-glyphs.js 按 cfRatingColor 的 tone 挂上来
+   （见那边的 CARD_TONES）；底板主色被滤镜拉到 CF 那一档的颜色上，所以七档都能对上。 */
+.dx-result-track {
+  --mm-card-h:118px; --mm-digit-h:42px; --mm-lv-h:29px;
+  /* 深蓝标题条的左边缘（底板的百分比，x106/745≈14.2%，扣掉自压那条四周多出来的 2px
+     原生 → 13.96%）。右上那行小字要和它对左，所以两边共用这一个变量，
+     以后挪条子不会有一边忘掉。 */
+  --mm-bar-left:13.96%;
+  /* 等级组（LV + 数字）在右侧圆盘里的整体抬升量，按卡高算。
+     圆盘 = 底板右端那个圆头，按底板 alpha 轮廓拟合（Kasa + 几何精修，残差 0）：
+     原生圆心 (672.6,72.7)、r=70.6，映射到卡片上（1200 视口，卡 749x118）就是
+     圆心 (676.2,60.4)、rx 71.0 / ry 58.7，即盒子 x 605.2..747.2 / y 1.7..119.0
+     （底板本身 745x142、alpha 只到 x742 / y139，右边和下边被图边裁掉一点）。
+     ⚠️ 圆心的 y（60.4）比深蓝条顶（71.45）只高 11px，而数字组有 42px 高 ——
+     真按圆心居中会让数字往条子里扎 8px。所以「居中」取的是**圆盘露在条子上面的
+     那半个碗**：圆盘顶 1.7 ~ 条子顶 71.45。
+     这一版实测（1200 视口）：整组盒 y 22.9..64.9，盒底离条子顶 6.6px，
+     数字墨迹（含描边）底边离条子顶 8.7px；右边留 1.85%（见 .dx-result-level）。
+     ⚠️ 只动整组：LV 与数字彼此的相对位置不变。 */
+  --mm-level-rise:13.8%;
+  /* 三处文字的字号按官方抓图里的「字高 ÷ 卡片高」反推（抓图卡片 616x117，
+     标题条实测 33px、EXPERT 字高 19px）：
+       难度名  19/117 = 16.2%  → 这里是 22 个字的「赛制 + 平台」，塞不进那一段；
+                                 15px（≈9.5%）是上限，再大窄屏那档就会顶到 52% 的盒子
+       标题    字高 ≈14/117 = 12% → M PLUS 1p 800 的 cap 高 0.73em，故 18px
+       题号    官方曲绘槽放的是曲绘、没有字，按标题同族的重量给 19px */
+  --mm-title-size:18px; --mm-heading-size:15px; --mm-slot-size:19px;
+  /* 「待定」那两个字自己一份字号：它跟着标题字号走的话，右半区的排版会被标题的改动带偏 */
+  --mm-pending-size:16px;
+  /* 未评级的底板用官方 **UTAGE**（宴）卡，不是灰 DMY —— 见 maimai-glyphs.js 的 CARD_TONES。
+     --mm-field 是 cover 那圈紧邻的板面平色（#ff86fe），cover 拿它盖掉板上烤的
+     「U・TA・GE」；换了底板就必须跟着换，否则粉面上会留一块深色方块。
+     ⚠️ 这块补丁里压着一片洋红 (249,45,218)，但补丁四周是浅粉 —— 取色取外面那圈。 */
+  --mm-plate:url('/assets/mm-result/UI_RSL_MBase_UTG.png');
+  --mm-field:#ff86fe; --mm-plate-filter:none;
+  --track-main:#7b8391; --track-deep:#3f4652;
+  position:relative; height:var(--mm-card-h); margin:2px 0 3px; color:#fff;
+  box-shadow:0 4px 0 var(--track-deep),0 8px 16px #00000033;
+}
+/* 底板那一层。滤镜只作用在这里 —— cover 也在里面，所以盖上去的那块底色会一起被拉过去 */
+.dx-result-track-art { position:absolute; inset:0; filter:var(--mm-plate-filter); }
+.dx-result-track-plate { position:absolute; inset:0; background:var(--mm-plate) 0 0/100% 100% no-repeat; }
+/* 盖掉板上烤着的难度名：填同一张板那一带的干净底色（不是渐变，板面在那里是平色），
+   位置按 prefab 量（原生 x96..304 / y41..87）。不带圆角，否则边上会露出来一线 */
+.dx-result-track-cover { position:absolute; left:12.89%; top:28.87%; width:27.92%; height:32.39%; background:var(--mm-field); }
+/* 深蓝标题条：板上本来有一条，但蓝/青两档整块板要转色相，navy 也会被带着偏，
+   所以恒压一条自己的（比板上那条四周各多 2px 原生，确保盖住） */
+.dx-result-track-bar { position:absolute; left:var(--mm-bar-left); top:60.56%; width:81.48%; height:30.99%; border-radius:15px; background:#0e3d7e; box-shadow:inset 0 2px 0 #ffffff26,0 1px 0 #062155; }
+/* 曲绘槽 → 题号。原来用 ui-monospace（等宽），官方界面里没有这个字体 —— 换成官方那套
+   M PLUS 1p（仓库自托管，见 theme.css 的 --mm-sans），重量取 800 和标题同级。
+   等宽改比例字体后字面变宽，字号保持 19px：'1999A' 实测 64px，槽宽 86px，仍然放得下。
+   ★ 面板本身照段位结算页那一格曲绘槽画（dan.css 的 .dan-track-jacket，见 dan.js:944）：
+     底色是**本档主色的浅色版** —— color-mix(in srgb, 主色 42%, #fff)，和 dan 那边同一个配比，
+     主色就是挂在卡上的 --track-main（cf-rating-colors.js 的 CF_TONE_COLORS[tone][0]，
+     dan 那边叫 --tc1、取的是同一张表）；再压一层 2px 半透明白内环 + 一点外投影，
+     字照 dan 那边改成深蓝 #17265c（原来是白字压黑晕）。板上那块纯黑只是「游戏里盖曲绘的槽」，
+     不是我们该拿来做底的东西。
+     ⚠️ 不学 dan 的 3px 圆角：底板那块纯黑是**方角**（实测 MST 板 x11..94 / y47..130 全是
+        (0,0,0)，UTG 板同形），一圆角四个角就会露出底板的黑三角，方角才对得上。
+     ⚠️ 底板那块黑比这个盒子还大一圈（MST 的黑从 y47 起、UTG 从 y46 起，盒子顶边 33.1% = 47；
+        右侧 AA 列在 x95），所以面板外加 1px 同色 spread 盖住那一行 —— 跟深蓝标题条
+        「四周各多 2px 原生」同一个理由，一行黑边压在浅色面板上面会非常显眼。
+   ⚠️ 面板不吃 --mm-plate-filter：那层滤镜在 .dx-result-track-art 里，槽是它的兄弟节点；
+      --track-main 已经是目标档位的颜色了。 */
+.dx-result-track-slot { --mm-slot-fill:color-mix(in srgb, var(--track-main) 42%, #ffffff); position:absolute; left:1.48%; top:33.1%; width:11.28%; height:59.15%; display:grid; place-items:center; overflow:hidden; font-family:var(--mm-sans); font-weight:800; font-size:var(--mm-slot-size); line-height:1; letter-spacing:.01em; color:#17265c; background:var(--mm-slot-fill); box-shadow:inset 0 0 0 2px #ffffff4d,0 0 0 1px var(--mm-slot-fill),0 2px 6px #00000024; }
+/* 难度名那一段 → 赛制 + 平台（题号在左边曲绘槽里，这里不重复）。
+   盒子比 cover 宽：cover 只要盖住板上那几个字，文字用多少算多少，右边留白不影响。
+   官方这一段是「难度名」一个词，同一字号同一白色；这里两段也统一成 800 的白字，
+   只靠 .06em 的字距把平台分开 —— 原来 13px/900 的 Arial 加 0.84em 的小字，
+   两截大小不一，反而像两种层级。
+   左右：这两个元素自己都没有 padding / border，所以「文字左边缘对条子左边缘」
+   = 两边的 left 取同一个值（--mm-bar-left）。原来这里是 13.4%，比条子左了
+   0.56%（卡片 749px 时 4.19px），标题就被那条深蓝比下去了一截。
+   纵向：盒子顶边留在 28.87%（= cover 那块补丁的顶边，和官方难度名所在的横带对齐），
+   只把盒子**收短**到 26%，因为原来 28.87%+32.39% 的底边落在 61.26%，比深蓝条顶
+   （60.56%）还低 0.7 个百分点 —— 也就是这一行字的下伸区压在条子上。
+   收短后（1200 视口，卡 118px）：盒 y 34.1..64.7，盒底离条子顶（71.45）6.7px；
+   墨迹底边 54.9，离条子顶 16.5px ≈ 1.45 倍字面高（原来 58.7 / 12.8px）。
+   盒子仍然比行高（18.75px）高，overflow:hidden 不会切到字。 */
+.dx-result-track-heading { position:absolute; left:var(--mm-bar-left); top:28.87%; width:52%; height:26%; display:flex; align-items:center; gap:6px; overflow:hidden; font-family:var(--mm-sans); font-size:var(--mm-heading-size); font-weight:800; letter-spacing:.01em; white-space:nowrap; text-shadow:0 1px 2px #000000a6,0 0 4px #00000073; }
+.dx-result-track-heading .dx-result-problem { font-size:1em; letter-spacing:.06em; }
+/* GameType：官方 でらっくす 小牌（84x28 原生） */
+.mm-gametype { position:absolute; left:65.5%; top:35.9%; width:11.28%; height:16.9%; }
+.dx-result-track .mm-gametype .mm-glyph { width:100%; height:100%; object-fit:contain; }
+/* 标题条 → 题名。官方那条里的曲名是官方哥特体（M PLUS 1p 那一类）、纯白、字距近乎为零，
+   所以这里也用 --mm-sans 的 800（原来落到 Arial，'a/e/R' 的字形和官方不是一路）。
+   ⚠️ 选择器要写两段类：theme.css 里 `body.mm-theme dialog h3`
+   （0,1,3）直接改 h3 的颜色，只写 .dx-result-name（0,1,0）会被它压过去 —— 题名会变成深蓝 */
+.dx-result .dx-result-name { position:absolute; left:14.2%; top:61.5%; width:80.6%; height:29.2%; margin:0; display:grid; place-items:center; padding:0 14px; color:#fff; }
+.dx-result-name .dx-result-title { max-width:100%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:var(--mm-sans); font-size:var(--mm-title-size); font-weight:800; letter-spacing:.005em; text-shadow:0 1px 2px #04123a99; }
+/* 右侧圆盘 → LV + 难度分。数字是官方 UI_CMN_MusicLevel_{族}_{格}，
+   格子 48x60，第 14 格就是那个小 LV。
+   ★ 两条锚点（本次改动）：**LV 钉死在一个 x 上不动，数字（或「?」）自己以圆盘圆心为心居中**。
+     改之前整组靠右对齐（right:1.85%），LV 的 x 跟着数字宽度跑：4 位数时 LV 在 599，
+     `?` 时整个组缩到 50px 宽、LV 被推到 685（1200 视口，实测差 85px）——
+     用户说未评级那档「LV ?」看着太靠右，就是这条的锅。
+   圆盘圆心（原生 672.58 / 745 = 90.279% 卡宽，见 .dx-result-track 上 --mm-level-rise 的注释）：
+     · 数字：left:90.279% + translateX(-50%) —— 3 位、4 位、`?` 的**盒中心**都落在圆心上。
+     · LV：右边缘钉在「最宽的那档（4 位数）数字盒的左边缘」再左移 2px（= 原来那条 margin-right），
+       所以 LV 的位置只跟 --mm-digit-h 有关，跟眼前这串数字几位数无关。
+       4 位数的盒宽 = (4×0.8 − 3×0.19) × 格高 = 2.63×格高，故盒左 = 90.279% − 1.315×格高。
+       这一档同时最接近官方：抓图里 LV 墨迹右缘到「13」墨迹左缘是 5.9 原生 px，
+       这里（2px 盒距 + 两侧各自的墨迹边距）折出来约 6.3px。
+       ⚠️ 官方抓图里 LV 墨迹右缘（native 631.9）离圆心 40.7px，比这里还靠右 5px 左右 ——
+          但官方数字只有两位、且官方 LV 画得比我们这支大（墨迹宽 31 native vs 我们 19），
+          照抄那个 x 的话 4 位数会直接压到 LV 上。以「不叠字」为准。
+       ⚠️ 这里用 calc(90.279% − k×格高) 而不是纯 %：数字是固定 px（不随卡宽缩），
+      窄屏卡片缩得比数字快，纯 % 会让 4 位数在 430 视口压回 LV 身上约 9px。
+   纵向：两行都用 bottom 顶在**和改之前同一条线**上（盒底 = 49% + --mm-level-rise − 格高/2，
+   由原来「top:calc(18% − rise)，高 66%，居中」推出来的：0.18−0.138+0.33 = 0.372，
+   故盒底离卡底 62.8% − 格高/2 = 49% + rise − 格高/2），LV 再按老规矩抬 0.095×格高。
+   所以 1200 视口下数字盒底仍是 y64.9、LV 盒底 y60.9，1200/820/430 三档实测逐像素对得上。
+   ⚠️ 新版卡这一格挂的是 `.dx-result-level-disc`（problemCard 里两个类一起写）。
+      下面那条 `.dx-result-level` 的右对齐规则**原样留着**：dan.js 的单题结算弹窗
+      （dan.js:439）还在用同一个类名装「LEVEL + 分数」两段文字，那套版式不能跟着动。
+   ================ 以下是改之前那条规则，dan 的单题结算靠它 ================
+   right 1.85%（1200 视口 749px 卡 → 13.8px）：让整组右边缘收进圆盘里，
+   离圆盘右缘 12.0px、离卡片右缘 13.8px。原来 1.2% 时整组右边缘（740.0）
+   离圆盘右缘只剩 7.2px，最后一个数字的墨迹几乎贴着卡边。
+   纵向：整组一起抬 --mm-level-rise，理由见那条变量上的注释。 */
+.dx-result-level { position:absolute; right:1.85%; top:calc(18% - var(--mm-level-rise)); height:66%; display:flex; align-items:center; justify-content:flex-end; }
+/* 新版卡（problemCard）的那一层：铺满整张卡，当绝对定位的坐标系用。
+   ⚠️ 必须显式写 height:100% 和 right:auto —— 只写 inset:0 的话上面那条的 height:66%
+      会赢过 bottom（绝对定位里 top/height/bottom 三者同时有值时不看 bottom）。 */
+.dx-result-track .dx-result-level-disc { position:absolute; left:0; top:0; right:auto; width:100%; height:100%; display:block; }
+/* 「待定」那条现在没有调用方了：无难度一律走 UTAGE 卡 + 「LV ?」（见 maimai-glyphs.js
+   的 problemCard）。样式留着 —— 「LV ?」和「待定」是同一件事，并排写会重复；
+   要换回来改 problemCard 那一行就行。 */
+.dx-result-level-pending { font-size:var(--mm-pending-size); font-weight:900; text-shadow:0 2px 3px #000000a6; }
+/* 这一层只负责挂 --mm-plate-filter（等级精灵是按族取图的，靠它拉到本档颜色上），
+   铺满整张卡、里面两个子元素各自绝对定位。 */
+.mm-level { position:absolute; inset:0; filter:var(--mm-plate-filter); }
+/* 数字那一串（含未评级时的「?」）：盒中心 = 圆盘圆心。宽度由内容定，
+   translateX(-50%) 保证不管 3 位还是 4 位，中心都落在同一个点上。 */
+.dx-result-track .mm-level .mm-level-digits { position:absolute; left:90.279%; bottom:calc(49% + var(--mm-level-rise) - var(--mm-digit-h) * .5); transform:translateX(-50%); display:inline-flex; align-items:flex-end; }
+.dx-result-track .mm-level .mm-level-digit { height:var(--mm-digit-h); width:auto; }
+/* 等级未知时顶在数字位置上的那个「?」。官方图集 UI_CMN_MusicLevel_* 每族 15 格
+   （0-9 加 + - , . 和 LV），**没有问号**，只能排字。
+   字号取 --mm-digit-h：数字精灵的白芯占格高 0.7（实测 EXP/MST 族芯 42/60，
+   整块墨迹含 2px 描边是 48/60），M PLUS 1p 800 的问号墨迹高约 0.72em，
+   42px 字号 → 30.2px，和白芯 29.4px 基本等高。
+   基线：这一族的字形度量 A/D = 1.0667/0.3333em，line-height:1 时基线落在盒底
+   上方 0.1333em = 0.1333×格高 —— 正好和数字白芯的底边（格底上方 0.1333×格高）
+   同一根线，所以不用再补 translate。描边用四向 drop-shadow 补一个
+   0.0333×格高（= 精灵那 2px/60 描边）的硬边，颜色取卡片自己的深色 --track-deep。
+   ⚠️ 它现在在 .mm-level-digits 里，盒中心同样落在圆盘圆心 —— 判据量的是盒中心，
+      问号自己的右边距（advance 减去墨迹）不影响这个中心。 */
+.dx-result-track .mm-level .mm-level-unknown {
+  font-family:var(--mm-sans); font-weight:800; font-size:var(--mm-digit-h); line-height:1; color:#fff;
+  filter:drop-shadow(calc(var(--mm-digit-h) * .0333) 0 0 var(--track-deep))
+         drop-shadow(calc(var(--mm-digit-h) * -.0333) 0 0 var(--track-deep))
+         drop-shadow(0 calc(var(--mm-digit-h) * .0333) 0 var(--track-deep))
+         drop-shadow(0 calc(var(--mm-digit-h) * -.0333) 0 var(--track-deep));
+}
+/* 数字字距：精灵格子 48x60，字形只占中间一块，直接并排（=整格宽）会散开。
+   官方抓图里量出来的推进量是 25.8px（缩放 0.71 时格宽 34.1px），即 **格宽的 0.757**，
+   换算成格子高就是 -0.19×格高 —— 官方 '1''3' 之间的墨迹间隙只有 5px（≈字高的 13%），
+   这里原来 33.6px 的推进量间隙有 12.6px（≈34%）。所以按格高收 0.19。
+   ⚠️ 选择器必须带 .dx-result-track 前缀：maimai-glyphs.css 在 dx-result.css 之后加载，
+      单类选择器会被它的源序压过去。 */
+.dx-result-track .mm-level .mm-level-digit + .mm-level-digit { margin-left:calc(var(--mm-digit-h) * -0.19); }
+/* LV：位置见上面那段（left 里 1.315 = 4 位数盒宽的一半 / 格高 = (4×0.8 − 3×0.19)/2，
+   translateX(-100%) 把盒子整体挪到那个点的左边，即 LV 的右边缘钉在那个点上）。
+   垂直：官方抓图里 LV 的墨迹底边（y171）和数字的（y169/170）基本在同一条线上，
+   但这边数字自带一圈深色描边，描边底边比白芯低 2.8px —— 照抄"墨迹对齐"时 LV 看着就往下坠。
+   抬 0.095×格高（默认 42px → 4px，就是原来那条 margin-bottom 的量），
+   LV 的墨迹底边正好落在数字白芯的基线上。 */
+.dx-result-track .mm-level .mm-level-lv { position:absolute; left:calc(90.279% - var(--mm-digit-h) * 1.315 - 2px); bottom:calc(49% + var(--mm-level-rise) - var(--mm-digit-h) * .405); transform:translateX(-100%); height:var(--mm-lv-h); width:auto; margin:0; }
 .dx-result-achievement-section { position:relative; margin:18px -28px 0; padding:0 28px 2px; }
 .dx-result-achievement-top { display:flex; gap:12px; align-items:center; }
 /* 这一条原来自己画了蓝渐变底 + 右下圆角（linear-gradient(100deg,#082c92,#057cf4) / border-radius:0 0 16px 0）
@@ -72,10 +238,18 @@
 .dx-result-achievement-label { margin-left:-30px; margin-top:-10px; padding:0; background:none;
   border-radius:0; color:inherit; }
 .dx-result-achievement-label > span { margin-left:12px; color:#80ebff; letter-spacing:2px; }
-/* 看板娘：贴在结算单右上角，压在面板之下（后面那些兄弟节点有底色，会自然盖住它），
-   这样它是从内容后面探出来的，不会挡住 TRACK 行，也不挡点击（设置入口在页头） */
-.dx-result-mascot { position:absolute; right:-14px; top:2px; margin:0; width:196px; height:300px; display:grid; align-items:end; justify-items:center; pointer-events:none; }
-.dx-result-mascot-img { max-width:196px; max-height:300px; object-fit:contain; filter:drop-shadow(0 6px 10px #243c8a55); }
+/* 看板娘：站在右半区（.dx-result-side）的右下角，整个人沉在所有内容下面。
+   ⚠️ .dx-result-sheet 有 isolation:isolate，所以这里的 z-index:-1 只会沉到
+   「结算单自己的背景之上、单子里所有内容之下」—— 立绘不会盖住任何文字或按钮，
+   成绩板只要半透明就能自然浮在它上面（见文件末尾「右半区」那一节）。
+   --mascot-h 372：站姿高度，正好让立绘头顶停在达成率数字（底边 405）之下，
+   不跟那一行抢画面；远端链接给的图比例再怪也是 contain 收进这个框里。 */
+.dx-result-mascot { position:absolute; z-index:-1; right:-24px; bottom:-12px; margin:0;
+  width:min(430px,54vw); height:372px;
+  display:flex; align-items:flex-end; justify-content:flex-end;
+  pointer-events:none; }
+.dx-result-mascot-img { width:100%; height:100%; object-fit:contain;
+  object-position:right bottom; filter:drop-shadow(0 8px 14px #16307a4d); }
 /* 窄屏放不下就收起来：它会压到 TRACK/达成率那几行上 */
 @media (max-width:640px) { .dx-result-mascot { display:none; } }
 /* 这一条原来自己画了淡白横带（linear-gradient(100deg,#ffffffd9,...)）
@@ -151,7 +325,7 @@
 .dx-result button:focus-visible { outline:3px solid #153483; outline-offset:4px; }
 .dx-result[open] { animation:dx-result-in .3s ease-out; }
 @keyframes dx-result-in { from { opacity:0; transform:translateY(16px) scale(.98); } to { opacity:1; transform:none; } }
-@media (max-width:600px) { .dx-result-sheet { padding:16px 16px 18px; } .dx-result-kicker > span { display:none; } .dx-result-clear { font-size:52px; } .dx-result-track { grid-template-columns:44px 1fr 50px; gap:7px; } .dx-result-track-icon { height:48px; font-size:20px; } .dx-result-track-heading { font-size:10px; gap:5px; } .dx-result-problem { font-size:8px; } .dx-result-track-heading i { display:none; } .dx-result-name { font-size:13px; padding:5px; } .dx-result-level strong { font-size:21px; } .dx-result-achievement-section { margin-left:-16px; margin-right:-16px; padding-left:16px; padding-right:16px; } .dx-result-achievement-label { margin-left:-16px; padding-left:16px; font-size:12px; } .dx-result-achievement-label > span { display:none; } .dx-result-achievement-top { gap:7px; } .dx-result-best > span:first-child { padding:3px 6px; } .dx-result-best b { font-size:10px; } .dx-result-achievement-delta { padding:7px; font-size:12px; } .dx-result-achievement { margin-left:-16px; margin-right:-16px; padding-left:16px; font-size:48px; letter-spacing:-2px; } .dx-result-record { position:static; display:inline-block; margin-top:8px; font-size:9px; transform:none; } .dx-result-main { grid-template-columns:1fr 145px; gap:12px; padding-top:12px; } .dx-result-rank { font-size:70px; letter-spacing:-4px; padding-right:0; } .dx-result-badges { gap:12px; margin-top:14px; } .dx-result-medal { width:54px; height:54px; border-width:4px; font-size:18px; } .dx-result-medal small { font-size:9px; } .dx-result-clean b { font-size:14px; } .dx-result-time { flex-direction:column; gap:2px; padding:5px; } .dx-result-time small span { display:none; } .dx-result-time strong { font-size:17px; } .dx-result-verdict { grid-template-columns:30px 1fr 30px; min-height:24px; padding-left:5px; font-size:10px; } .dx-result-verdict small { font-size:8px; } .dx-result-verdict strong { font-size:15px; } .dx-result-rating { flex-wrap:wrap; gap:4px; padding:4px; } .dx-result-rating small { font-size:9px; } .dx-result-rating strong { font-size:15px; } .dx-result-single-delta { font-size:9px; } .dx-result-total { gap:8px; padding-left:8px; } .dx-result-total-label { font-size:23px; } .dx-result-total-score { padding:5px 9px; } .dx-result-total-score strong { font-size:25px; letter-spacing:1px; } .dx-result-total-delta { font-size:18px; } .dx-result-footer { gap:12px; } .dx-result-note { font-size:9px; } .dx-result-next { gap:10px; padding:8px 13px; font-size:17px; } }
+@media (max-width:600px) { .dx-result-sheet { padding:16px 16px 18px; } .dx-result-kicker > span { display:none; } .dx-result-clear { font-size:52px; } .dx-result-track { --mm-card-h:92px; --mm-digit-h:27px; --mm-lv-h:19px; --mm-title-size:14px; --mm-heading-size:11px; --mm-slot-size:11px; --mm-pending-size:12px; } .dx-result-achievement-section { margin-left:-16px; margin-right:-16px; padding-left:16px; padding-right:16px; } .dx-result-achievement-label { margin-left:-16px; padding-left:16px; font-size:12px; } .dx-result-achievement-label > span { display:none; } .dx-result-achievement-top { gap:7px; } .dx-result-best > span:first-child { padding:3px 6px; } .dx-result-best b { font-size:10px; } .dx-result-achievement-delta { padding:7px; font-size:12px; } .dx-result-achievement { margin-left:-16px; margin-right:-16px; padding-left:16px; font-size:48px; letter-spacing:-2px; } .dx-result-record { position:static; display:inline-block; margin-top:8px; font-size:9px; transform:none; } .dx-result-main { grid-template-columns:1fr 145px; gap:12px; padding-top:12px; } .dx-result-rank { font-size:70px; letter-spacing:-4px; padding-right:0; } .dx-result-badges { gap:12px; margin-top:14px; } .dx-result-medal { width:54px; height:54px; border-width:4px; font-size:18px; } .dx-result-medal small { font-size:9px; } .dx-result-clean b { font-size:14px; } .dx-result-time { flex-direction:column; gap:2px; padding:5px; } .dx-result-time small span { display:none; } .dx-result-time strong { font-size:17px; } .dx-result-verdict { grid-template-columns:30px 1fr 30px; min-height:24px; padding-left:5px; font-size:10px; } .dx-result-verdict small { font-size:8px; } .dx-result-verdict strong { font-size:15px; } .dx-result-rating { flex-wrap:wrap; gap:4px; padding:4px; } .dx-result-rating small { font-size:9px; } .dx-result-rating strong { font-size:15px; } .dx-result-single-delta { font-size:9px; } .dx-result-total { gap:8px; padding-left:8px; } .dx-result-total-label { font-size:23px; } .dx-result-total-score { padding:5px 9px; } .dx-result-total-score strong { font-size:25px; letter-spacing:1px; } .dx-result-total-delta { font-size:18px; } .dx-result-footer { gap:12px; } .dx-result-note { font-size:9px; } .dx-result-next { gap:10px; padding:8px 13px; font-size:17px; } }
 @media (max-height:740px) and (min-width:601px) { .dx-result-sheet { padding-top:12px; padding-bottom:15px; } .dx-result-clear { font-size:54px; } .dx-result-kicker b { font-size:20px; } .dx-result-subtitle { margin-bottom:9px; } .dx-result-main { padding:13px 0 12px; } .dx-result-rank { font-size:108px; } .dx-result-achievement-section { margin-top:13px; } .dx-result-footer { margin-top:10px; } }
 @media (prefers-reduced-motion:reduce) { .dx-result[open] { animation:none; } }
 @media (max-height:740px) and (min-width:601px) {
@@ -165,19 +339,10 @@
   .dx-result-total-score strong { font-size:28px; }
   .dx-result-total-label { font-size:25px; }
 }
-/* Problem difficulty borrows Codeforces handle hues; the scene keeps its prism palette. */
-.dx-result-track { --track-light:#cf8cf7; --track-main:#a846e8; --track-deep:#6224b1; --track-title:#35147c; border-color:var(--track-deep); background:linear-gradient(105deg,var(--track-light),var(--track-main) 48%,var(--track-main)); }
-.dx-result-track::before { background:repeating-conic-gradient(var(--track-deep) 0% 25%,transparent 0% 50%) 0 0/18px 18px; }
-.dx-result-track-icon { background:conic-gradient(from 35deg,var(--track-light),var(--track-main),var(--track-deep),var(--track-main),var(--track-light)); }
-.dx-result-name { background:linear-gradient(var(--track-title),var(--track-deep)); }
-.dx-result-level strong { text-shadow:2px 2px var(--track-deep); }
-.dx-result-track[data-rating-tone=gray],.dx-result-track[data-rating-tone=unrated] { --track-light:#f0f2f4; --track-main:#aeb6bf; --track-deep:#677481; --track-title:#3e4955; }
-.dx-result-track[data-rating-tone=green] { --track-light:#76d17a; --track-main:#249b43; --track-deep:#0e6129; --track-title:#0b4620; }
-.dx-result-track[data-rating-tone=cyan] { --track-light:#68e4db; --track-main:#03a89e; --track-deep:#007870; --track-title:#005650; }
-.dx-result-track[data-rating-tone=blue] { --track-light:#7695ff; --track-main:#395de3; --track-deep:#192eaf; --track-title:#172673; }
-.dx-result-track[data-rating-tone=violet] { --track-light:#de8ce8; --track-main:#b23cc4; --track-deep:#7b178b; --track-title:#50165d; }
-.dx-result-track[data-rating-tone=orange] { --track-light:#ffcf77; --track-main:#ed921f; --track-deep:#ac5d09; --track-title:#754108; }
-.dx-result-track[data-rating-tone=red] { --track-light:#ff8e93; --track-main:#eb394a; --track-deep:#ac172c; --track-title:#791426; }
+/* 题目难度借用 Codeforces 名称色，场景本身保持棱镜色。
+   色对来自 cf-rating-colors.js 的 CF_TONE_COLORS（和段位结算页逐题卡同一张表），
+   底板文件 / 滤镜 / 板面底色由 maimai-glyphs.js 按同一个 tone 挂到卡上，
+   所以这里不再按 tone 重复写颜色。 */
 .dx-result-bottom { display:grid; grid-template-columns:1fr auto; align-items:center; column-gap:18px; row-gap:12px; }
 .dx-result-bottom .dx-result-footer { display:contents; }
 .dx-result-bottom .dx-result-total { grid-column:1; grid-row:1; }
@@ -472,3 +637,106 @@
 /* 字间距再收紧 */
 .dx-result-achievement-value .mm-number-int + .mm-number-int  { margin-left:-12px; }
 .dx-result-achievement-value .mm-number-frac + .mm-number-frac { margin-left:-10px; }
+
+/* ═══ 右半区：看板娘站在右下角，半透明成绩板浮在它上面 ═══════════════════════
+   官方结算画面里看板娘的容器是 Main/Null_NavicharaRoot：
+     抓图 471.6 x 261.7，中心在 [658.3, 755.0]（这是 903x906 的画面坐标，中心而非左上）。
+   弹窗宽 820，缩放 = 820/903 = 0.908：
+     宽 471.6 x 0.908 ≈ 428          -> 取 430
+     右边缘 (658.3 + 235.8) x 0.908 ≈ 812（离画面右边约 8px，基本贴边）
+     中心横坐标 658.3 x 0.908 ≈ 598 = 画面宽的 72.9%
+   纵向不照搬：906 是街机整屏，弹窗高度由内容撑出来，两者高度不是一回事。
+   所以只保留 prefab 给的横向结论（贴右、宽约 428、中心在 72.9% 处），
+   纵向换成「脚踩在成绩行下缘、头探到成绩板上方」—— 这才是「右下角的立绘」。
+
+   分层：立绘 z-index:-1（沉到 .dx-result-sheet 的隔离层里，单子里所有内容之下），
+   成绩板 z-index:1 显式压在上面 —— 顺序不靠 DOM 先后，也不怕以后有人加节点。
+   ────────────────────────────────────────────────────────────────────────── */
+.dx-result-side { position:relative; align-self:stretch; display:grid;
+  align-content:center; min-width:0; }
+
+/* 成绩板：官方面板那套深蓝玻璃 + 亮青硬描边 + 四角切角。
+   底色只有 6~7 成不透明 —— 看板娘从板子后面透出来（用户要的"半透明"就在这一行）。
+   不用 backdrop-filter：那会把立绘糊掉，"看得见人"优先于"字更好读"。 */
+.dx-result-detail {
+  position:relative; z-index:1; box-sizing:border-box; width:100%;
+  padding:12px 12px 11px;
+  border:2px solid #d3f2ffbf;
+  border-radius:15px 5px 15px 5px;
+  background:linear-gradient(157deg,#0a1d55bd 0%,#08164799 42%,#123a86b0 74%,#0b2059a6 100%);
+  box-shadow:inset 0 1px 0 #ffffff2b,inset 0 0 0 1px #3f7ad64d,
+    inset 0 -20px 34px #0612344d,0 0 0 1px #0a1c4973,0 14px 30px #0612335e;
+  color:#eaf6ff;
+  overflow:hidden;
+}
+/* 顶上一条棱镜细线、右下角一块切角高光：官方那套硬边+反光的语言 */
+.dx-result-detail::before { content:''; position:absolute; left:0; top:0; right:0; height:3px;
+  background:linear-gradient(90deg,#6ff2ff,#8ea2ff 38%,#f7a8f0 62%,#ffe98a);
+  opacity:.85; pointer-events:none; }
+.dx-result-detail::after { content:''; position:absolute; right:0; bottom:0; width:54px; height:54px;
+  background:linear-gradient(135deg,transparent 47%,#bfe9ff33 48%); pointer-events:none; }
+
+/* PLAY TIME：左边青色小字标签，右边白色等宽数字 */
+.dx-result-time { display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+  margin:0 0 9px; padding:1px 2px 8px; border:0; border-bottom:1px solid #86d9ff3d;
+  border-radius:0; background:none; text-align:left; }
+.dx-result-time small { display:block; margin:0; color:#8fdcff; font-size:8.5px;
+  font-weight:800; letter-spacing:2px; text-shadow:0 1px 2px #04102e; }
+.dx-result-time strong { color:#fff; font-size:25px; font-weight:800; letter-spacing:.5px;
+  font-variant-numeric:tabular-nums; text-shadow:0 0 12px #58c8ff7a,0 1px 0 #061436; }
+
+/* 判定行：判定色不动（AC 绿 / WA 粉 / TLE 琥珀 / RE 紫 / CE 灰），
+   但改成半透明玻璃条，立绘从这里也能透出来；数字块留白，压住底色好读。 */
+.dx-result-verdicts { gap:5px; }
+.dx-result-verdict { --verdict-rgb:16 176 132;
+  display:grid; grid-template-columns:1fr 62px; align-items:center;
+  min-height:26px; padding-left:11px; border:1px solid #ffffff42; border-radius:6px;
+  background:linear-gradient(100deg,rgb(var(--verdict-rgb) / .82),rgb(var(--verdict-rgb) / .5) 62%,rgb(var(--verdict-rgb) / .32));
+  box-shadow:inset 0 1px 0 #ffffff3d,0 1px 2px #04102e47;
+  color:#fff; font-size:12px; font-weight:800; letter-spacing:1px;
+  text-shadow:0 1px 2px #05204a9e; }
+.dx-result-verdict strong { border:0; border-left:1px solid #ffffff5c; border-radius:0 5px 5px 0;
+  background:linear-gradient(#ffffffd6,#eaf7ffe0); color:var(--verdict-color);
+  font-family:'Arial',sans-serif; font-size:19px; font-weight:800; letter-spacing:0;
+  line-height:1.15; padding:2px 0; }
+.dx-result-verdict-wa { --verdict-rgb:219 84 117; }
+.dx-result-verdict-tle { --verdict-rgb:201 154 46; }
+.dx-result-verdict-re { --verdict-rgb:150 112 202; }
+.dx-result-verdict-ce,.dx-result-verdict-other,.dx-result-verdict-pending,.dx-result-verdict-mle { --verdict-rgb:107 136 174; }
+
+/* Rating：板子最底下一格，深蓝底 + 淡青描边，数字白色带冷光 */
+.dx-result-rating { margin-top:10px; padding:8px 10px; gap:8px;
+  border:1px solid #9fd6ff6b; border-radius:7px;
+  background:linear-gradient(135deg,#1c47a3a8,#0b2159a0);
+  box-shadow:inset 0 1px 0 #ffffff26,0 0 0 1px #0614375c; }
+.dx-result-rating small { color:#9fe4ff; font-size:11px; font-weight:600; letter-spacing:.3px; }
+.dx-result-rating strong { color:#fff; font-family:'Arial',sans-serif; font-size:24px;
+  font-weight:800; line-height:1; font-variant-numeric:tabular-nums;
+  text-shadow:0 0 12px #7fd8ff85; }
+.dx-result-single-delta { color:#ffe38e; font-size:12px; font-weight:700; }
+
+/* 矮窗 / 窄屏：上面那两段媒体查询写在我前面，会被这一节的基线规则盖掉，
+   所以同样的压缩量必须在这里再写一遍。 */
+@media (max-height:740px) and (min-width:601px) {
+  .dx-result-mascot { height:340px; }
+  .dx-result-detail { padding:9px; }
+  .dx-result-time { padding-bottom:6px; margin-bottom:7px; }
+  .dx-result-time strong { font-size:22px; }
+  .dx-result-verdict { min-height:23px; }
+  .dx-result-verdict strong { font-size:18px; line-height:1.1; padding:1px 0; }
+  .dx-result-rating { margin-top:8px; padding:6px 9px; }
+  .dx-result-rating strong { font-size:22px; }
+}
+@media (max-width:600px) {
+  .dx-result-detail { padding:7px; }
+  .dx-result-time { flex-direction:column; align-items:flex-start; gap:2px;
+    padding:0 0 7px; margin-bottom:7px; }
+  .dx-result-time strong { font-size:19px; letter-spacing:.3px; }
+  .dx-result-time small { font-size:7.5px; letter-spacing:1.4px; }
+  .dx-result-verdict { grid-template-columns:1fr 38px; padding-left:7px; font-size:10px; min-height:24px; }
+  .dx-result-verdict strong { font-size:17px; }
+  .dx-result-rating { margin-top:7px; padding:6px; gap:5px; }
+  .dx-result-rating small { font-size:9px; }
+  .dx-result-rating strong { font-size:19px; }
+  .dx-result-single-delta { font-size:9px; }
+}

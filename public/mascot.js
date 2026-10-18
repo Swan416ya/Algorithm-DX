@@ -20,6 +20,9 @@ export const MASCOT_DEFAULT =
 /** 站上「获取链接」的入口，设置页引导用户去这里挑 */
 const MASCOT_SITE = 'https://lolicount.top';
 
+/** 远端图挂了就退回这张本地占位图（仓库自带，不联外网） */
+export const MASCOT_FALLBACK = '/assets/mm-parts/chara-placeholder.png';
+
 export function getMascotUrl() {
   try {
     const value = localStorage.getItem(MASCOT_KEY);
@@ -45,22 +48,37 @@ export function setMascotUrl(url) {
  * 造一个看板娘 <img>。
  *
  * lolicount.top 给的是 SVG，浏览器能直接在 <img> 里画；这里不解析它的内容，
- * 将来它换成别的位图格式也照用。加载失败时留一个可读的兜底，而不是一个破图标。
+ * 将来它换成别的位图格式也照用。
+ *
+ * 三级降级：用户链接 → 本地占位图（fallback）→ 彻底藏起来。
+ * 前两级任何一级失败都不会露出浏览器的破图标；最后一级加 .mm-mascot-failed，
+ * 由 mascot.css 设成 display:none —— 布局照样是完整的一块，只是里面没有图。
  */
-export function mascotImage({ className = '', alt = '看板娘' } = {}) {
+export function mascotImage({ className = '', alt = '看板娘', fallback = MASCOT_FALLBACK } = {}) {
   const img = document.createElement('img');
   img.className = className;
   img.alt = alt;
   img.loading = 'lazy';
   img.decoding = 'async';
   img.referrerPolicy = 'no-referrer';
-  const show = (url) => {
-    img.src = url;
-  };
-  img.addEventListener('error', () => {
+  let dead = false; // 已经退到尽头，别再互相触发 error
+  const fail = () => {
     img.classList.add('mm-mascot-failed');
     img.alt = '看板娘加载失败，检查一下链接';
     img.removeAttribute('src');
+  };
+  const show = (url) => {
+    if (!url) { dead = true; fail(); return; }
+    dead = false;
+    img.classList.remove('mm-mascot-failed');
+    img.src = url;
+  };
+  img.addEventListener('error', () => {
+    if (dead) return;
+    // 先退回本地占位图；占位图自己也没了就藏起来，别留破图
+    if (fallback && img.getAttribute('src') !== fallback) { img.src = fallback; return; }
+    dead = true;
+    fail();
   });
   show(getMascotUrl());
   // 设置改了就换图；同一个元素上只挂一次

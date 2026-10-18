@@ -1,7 +1,25 @@
-import { cfRatingColor } from './cf-rating-colors.js';
+import { cfRatingColor, cfToneColors } from './cf-rating-colors.js';
 import { mascotImage } from './mascot.js';
-import { clearWord, trackLabel, trackNumber, rankWord, scoreNumber, achievementColour, achievementLabel, medalPair, NUMBER_COLOURS } from './maimai-glyphs.js';
+import { clearWord, trackLabel, trackNumber, rankWord, scoreNumber, achievementColour, achievementLabel, medalPair, problemCard, cardTone, NUMBER_COLOURS } from './maimai-glyphs.js';
 import { rankOf } from './dx-rank.js';
+
+/**
+ * 题目难度 → 数字。服务端给的是 number 或 null（见 src/dx/timer.ts）。
+ * 这里显式转一次：老数据/预览样例里有把难度写成字符串的（'1700'），
+ * 直接丢给 cfRatingColor 会得到 unrated —— 整张卡会错成灰的。
+ * 空值仍然回 null（= 未评级），别把"没难度"变成"0 分"。
+ */
+function difficultyOf(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
+/**
+ * 练习类型 → 卡片上那行小字的**第一个词**（第二个词是平台，见 problem-source.js 的
+ * PLATFORM_LABELS）。这里也是 key→字面，不在模板里写死。
+ */
+const PRACTICE_KIND_LABEL = { first: 'INDEPENDENT', repeat: 'REPLAY', assisted: 'ASSISTED', unknown: 'PRACTICE' };
 
 export function initDxTimer({ getUser, onComplete, onResultClose }) {
   const $ = id => document.getElementById(id);
@@ -12,16 +30,15 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
   dialog.setAttribute('aria-labelledby', 'dxResultTitle');
   dialog.innerHTML = `<div class="dx-result-sheet">
     <button class="dx-result-close" type="button" aria-label="关闭结算">×</button>
-    <figure class="dx-result-mascot" aria-hidden="true"></figure>
     <div class="dx-result-kicker"><span class="dx-result-track-word"></span><b>01</b><span>ALGORITHM DX</span></div>
     <h2 id="dxResultTitle" class="dx-result-clear"></h2>
-    <div class="dx-result-track"><div class="dx-result-track-icon" aria-hidden="true">DX<span>✦</span></div><div class="dx-result-track-content"><div class="dx-result-track-heading"><span class="dx-result-kind"></span><span class="dx-result-problem"></span><i>DX</i></div><h3 class="dx-result-name"></h3></div><div class="dx-result-level"><small>LEVEL</small><strong></strong></div></div>
+    <div class="dx-result-track"></div>
     <section class="dx-result-achievement-section" aria-label="达成率结算">
       <div class="dx-result-achievement-top"><div class="dx-result-achievement-label"></div></div>
       <div class="dx-result-achievement"><span class="dx-result-achievement-value"></span></div>
     </section>
     <div class="dx-result-main"><div class="dx-result-performance"><div class="dx-result-rank" aria-label="本次评级"></div><div class="dx-result-badges"></div></div>
-      <div class="dx-result-detail"><div class="dx-result-time"><small>PLAY TIME</small><strong></strong></div><div class="dx-result-verdicts" aria-label="本次提交判定"></div><div class="dx-result-rating"><small>Rating</small><strong></strong><span class="dx-result-single-delta"></span></div></div>
+      <div class="dx-result-side"><figure class="dx-result-mascot" aria-hidden="true"></figure><div class="dx-result-detail"><div class="dx-result-time"><small>PLAY TIME</small><strong></strong></div><div class="dx-result-verdicts" aria-label="本次提交判定"></div><div class="dx-result-rating"><small>Rating</small><strong></strong><span class="dx-result-single-delta"></span></div></div></div>
     </div>
     <div class="dx-result-bottom"><div class="dx-result-total"><div class="dx-result-total-label"><b>DX</b><span>RATING</span></div><div class="dx-result-total-score"><strong></strong></div><span class="dx-result-total-delta"></span></div>
     <div class="dx-result-footer"><button class="dx-result-next" type="button">下一步 <span aria-hidden="true">›</span></button></div></div>
@@ -49,12 +66,32 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
         trackNumber(trackPreview.replace(/\D/g, '').padStart(2, '0').slice(-2)));
       field('.dx-result-kicker b').style.visibility = '';
     }
-    const color = cfRatingColor(result.difficulty);
-    field('.dx-result-track').dataset.ratingTone = color.tone;
-    field('.dx-result-track').title = `题目难度配色参考 CF 名称颜色：${color.label}（${color.range}）`;
-    field('.dx-result-problem').textContent = 'CODEFORCES / '+timer.problem_id;
-    field('.dx-result-name').textContent = result.title;
-    field('.dx-result-level strong').textContent = result.difficulty ?? '待定';
+    // 卡片整块用官方乐曲底板 + 官方等级数字重画（maimai-glyphs.js 的 problemCard）。
+    // 配色还是那一条：难度 → cfRatingColor 的 tone → 底板/滤镜/板面底色。
+    const difficulty = difficultyOf(result.difficulty);
+    const color = cfRatingColor(difficulty);
+    const [toneMain, toneDeep] = cfToneColors(color.tone);
+    const tone = cardTone(color.tone);
+    const card = field('.dx-result-track');
+    card.dataset.ratingTone = color.tone;
+    card.title = `题目难度配色参考 CF 名称颜色：${color.label}（${color.range}）`;
+    card.style.setProperty('--mm-plate', `url('/assets/mm-result/${tone.plate}')`);
+    card.style.setProperty('--mm-field', tone.field);
+    card.style.setProperty('--mm-plate-filter', tone.filter);
+    card.style.setProperty('--track-main', toneMain);
+    card.style.setProperty('--track-deep', toneDeep);
+    // 题面来源的平台**不传**：服务端今天只发 Codeforces，result 和 timer 上都没有 platform
+    // 字段（见 src/dx/timer.ts 的 timerResult —— 平台在 SQL 里就是写死的 'codeforces'），
+    // 所以这里不能凭空写 result.platform。不传 → problemCard → platformLabel() 落回
+    // problem-source.js 的默认值，卡片照旧印 CODEFORCES；哪天服务端把平台发下来了，
+    // 在这里补一个 platform: result.platform 就切换完了。
+    card.replaceChildren(problemCard({
+      problemId: timer.problem_id,
+      kind: PRACTICE_KIND_LABEL[result.practiceKind] ?? result.practiceKind ?? '',
+      title: result.title,
+      difficulty,
+      tone: color.tone,
+    }));
     const achievementText = score ? score.achievementShown.toFixed(4) : null;
     // 显示哪个数字：调试用的 ?achievement= 优先，否则用本次成绩
     // 两条路都补齐到四位小数 —— 结算单上的达成率永远是 4 位（100.0000%）
@@ -114,7 +151,6 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
       sheet.querySelector('.dx-result-bg').src =
         '/mm-result-bg.html?ui=0&clear=1&t=0&rank=' + bgRank;
     }
-    field('.dx-result-kind').textContent = {first:'INDEPENDENT',repeat:'REPLAY',assisted:'ASSISTED',unknown:'PRACTICE'}[result.practiceKind];
     field('.dx-result-time strong').textContent = duration(result.seconds);
     field('.dx-result-rating strong').textContent = score ? score.rating.toFixed(1) : '—';
     const comparison = result.comparison, previous = comparison?.previousScore;
@@ -155,7 +191,8 @@ export function initDxTimer({ getUser, onComplete, onResultClose }) {
       tag.append(name,count);
       field('.dx-result-verdicts').append(tag);
     }
-    // 看板娘每次都重画：用户可能在设置里刚换过，图源就是那串 lolicount.top 链接
+    // 看板娘每次都重画：用户可能在设置里刚换过，图源就是那串 lolicount.top 链接。
+    // 远端挂了 mascotImage 会自己退回本地占位图，这里的排版不用管加载成功与否。
     field('.dx-result-mascot').replaceChildren(mascotImage({ className: 'dx-result-mascot-img' }));
     if (!dialog.open) dialog.showModal();
   }
